@@ -52,7 +52,7 @@ def layer_support(stack: str) -> dict:
         "rust":   {"systems": "implemented", "contracts": "implemented", "symbols": "implemented (definition-lookup)", "assets": "stub"},
         "unity":  {"systems": "implemented", "contracts": "stub",        "symbols": "stub",                             "assets": "stub"},
         "dart":   {"systems": "implemented", "contracts": "stub",        "symbols": "stub",                             "assets": "stub"},
-        "ts":     {"systems": "stub",        "contracts": "stub",        "symbols": "stub",                             "assets": "stub"},
+        "ts":     {"systems": "implemented", "contracts": "stub",        "symbols": "stub",                             "assets": "stub"},
         "python": {"systems": "stub",        "contracts": "stub",        "symbols": "stub",                             "assets": "stub"},
         "go":     {"systems": "stub",        "contracts": "stub",        "symbols": "stub",                             "assets": "stub"},
     }

@@ -42,6 +42,23 @@ def render(doc: dict) -> str:
                 f"| `{s['name']}` | {kind} | {'yes' if s.get('editor_only') else 'no'} "
                 f"| {s.get('cs_file_count', 0)} | `{s.get('scope_dir', '?')}` | {deps} |"
             )
+    elif stack == "ts":
+        lines += [
+            "## Systems",
+            "",
+            "| System | Version | Kind | Scope | Deps | Dev deps |",
+            "|--------|---------|------|-------|------|----------|",
+        ]
+        for s in systems:
+            kinds = ",".join(s.get("kind", []))
+            deps = [d["name"] for d in s.get("dependencies", []) if d.get("kind") is None]
+            devs = [d["name"] for d in s.get("dependencies", []) if d.get("kind") == "dev"]
+            lines.append(
+                f"| `{s['name']}` | {s.get('version') or '—'} | {kinds} "
+                f"| `{s.get('scope_dir', '.')}` "
+                f"| {', '.join(deps[:5])}{'…' if len(deps) > 5 else ''} "
+                f"| {', '.join(devs[:5])}{'…' if len(devs) > 5 else ''} |"
+            )
     elif stack == "dart":
         lines += [
             "## Systems",
