@@ -9,7 +9,7 @@ from codemap import meta, paths
 from codemap import boundaries as boundaries_mod
 from codemap.detect import detect
 from codemap.render import systems_md, contract_md, graph_md, boundaries_md
-from codemap.stacks import rust, unity, dart
+from codemap.stacks import rust, unity, dart, ts
 
 
 def _write_json(path: Path, data: dict) -> None:
@@ -63,6 +63,13 @@ def _refresh_dart(project_root: Path, codemap_dir: Path, affected: Optional[Set[
     return systems_doc, 0
 
 
+def _refresh_ts(project_root: Path, codemap_dir: Path, affected: Optional[Set[str]]):
+    systems_doc = ts.build_systems(project_root)
+    _write_json(codemap_dir / "systems.json", systems_doc)
+    (codemap_dir / "systems.md").write_text(systems_md.render(systems_doc), encoding="utf-8")
+    return systems_doc, 0
+
+
 def refresh(project_root: Path, *, affected: Optional[Set[str]] = None) -> dict:
     """Regenerate all codemap artefacts (or only `affected` systems' Layer 2)."""
     codemap_dir = paths.ensure_codemap_dir(project_root)
@@ -75,6 +82,8 @@ def refresh(project_root: Path, *, affected: Optional[Set[str]] = None) -> dict:
         systems_doc, contract_count = _refresh_unity(project_root, codemap_dir, affected)
     elif stack == "dart":
         systems_doc, contract_count = _refresh_dart(project_root, codemap_dir, affected)
+    elif stack == "ts":
+        systems_doc, contract_count = _refresh_ts(project_root, codemap_dir, affected)
     elif stack == "unknown":
         raise ValueError(
             "unsupported stack — no recognised manifest found (expected one of: "
@@ -83,7 +92,7 @@ def refresh(project_root: Path, *, affected: Optional[Set[str]] = None) -> dict:
         )
     else:
         raise ValueError(
-            f"stack '{stack}' detected but Layer 1 not yet implemented (implemented: rust, unity, dart)"
+            f"stack '{stack}' detected but Layer 1 not yet implemented (implemented: rust, unity, dart, ts)"
         )
 
     # Visual views regenerate every refresh so `.codemap/graph.md` +
@@ -138,6 +147,14 @@ def files_to_affected_systems(project_root: Path, changed_files: Iterable[str]) 
             scope = s.get("scope_dir", "")
             for p in changed_paths:
                 if scope in (".", "") or p == s.get("manifest_path") or p.startswith(scope + "/"):
+                    affected.add(s["name"])
+                    break
+    elif stack == "ts":
+        for s in systems_doc["systems"]:
+            scope = s.get("scope_dir", "")
+            manifest = s.get("manifest_path", "")
+            for p in changed_paths:
+                if scope in (".", "") or p == manifest or p.startswith(scope + "/"):
                     affected.add(s["name"])
                     break
     return affected
