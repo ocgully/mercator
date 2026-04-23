@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "codemap"
-version = "0.2.0"
+version = "0.3.0"
 description = "Layered, AI-friendly codemap CLI for agent consumption. Produces systems/contracts/symbols slices in JSON."
 readme = "README.md"
 requires-python = ">=3.8"

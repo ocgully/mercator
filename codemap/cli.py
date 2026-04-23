@@ -130,6 +130,12 @@ def cmd_query(args) -> int:
             data = query_mod.boundaries(root)
         elif args.subject == "violations":
             data = query_mod.violations(root)
+        elif args.subject == "assets":
+            data = _query_layer4(root, "assets",
+                                 system=args.system, asset_kind=args.asset_kind)
+        elif args.subject == "strings":
+            data = _query_layer4(root, "strings",
+                                 key=args.key, file=args.file)
         else:
             print(f"codemap: unknown query subject '{args.subject}'", file=sys.stderr)
             return 1
@@ -138,6 +144,54 @@ def cmd_query(args) -> int:
         return 4
 
     _print_json(data)
+    return 0
+
+
+def _query_layer4(root: Path, layer: str, *,
+                  system=None, asset_kind=None, key=None, file=None) -> dict:
+    """Load .codemap/{assets|strings}.json + apply optional filters."""
+    import fnmatch
+    cm = paths.codemap_dir(root)
+    path = cm / f"{layer}.json"
+    if not path.is_file():
+        return {"query": layer, "found": False,
+                "note": f"{layer}.json not present — run `codemap refresh`"}
+    doc = json.loads(path.read_text(encoding="utf-8"))
+    items_key = layer
+    items = doc.get(items_key, [])
+    if system:
+        items = [i for i in items if i.get("owning_system") == system]
+    if asset_kind:
+        items = [i for i in items if i.get("kind") == asset_kind]
+    if key:
+        items = [i for i in items
+                 if i.get("key") and fnmatch.fnmatchcase(i["key"], key)]
+    if file:
+        items = [i for i in items if i.get("file") == file]
+    out = dict(doc)
+    out[items_key] = items
+    out["query"] = layer
+    out["filters"] = {"system": system, "asset_kind": asset_kind,
+                      "key": key, "file": file}
+    out["count"] = len(items)
+    return out
+
+
+def cmd_diff(args) -> int:
+    from codemap import diff as diff_mod
+    root = _project_root(args)
+    if ".." not in args.range:
+        print("codemap: diff requires a 'refA..refB' range", file=sys.stderr)
+        return 1
+    ref_a, ref_b = args.range.split("..", 1)
+    if not ref_a or not ref_b:
+        print("codemap: diff requires both sides of the range", file=sys.stderr)
+        return 1
+    data = diff_mod.compute_diff(root, ref_a, ref_b)
+    if args.format == "md":
+        sys.stdout.write(diff_mod.render_diff_md(data) + "\n")
+    else:
+        _print_json(data)
     return 0
 
 
@@ -323,13 +377,25 @@ def _build_parser() -> argparse.ArgumentParser:
     sp.set_defaults(func=cmd_refresh)
 
     sp = sub.add_parser("query", help="Query a slice. JSON by default.")
-    sp.add_argument("subject", choices=["systems", "deps", "contract", "symbol", "touches", "system", "boundaries", "violations"])
+    sp.add_argument("subject",
+                    choices=["systems", "deps", "contract", "symbol", "touches", "system",
+                             "boundaries", "violations", "assets", "strings"])
     sp.add_argument("name", nargs="?", help="Name/path argument for the query")
     sp.add_argument("--kind", default="any",
                     choices=["any", "fn", "struct", "enum", "trait", "type", "const", "static", "mod"],
                     help="(symbol) Restrict to one kind")
     sp.add_argument("--kinds", default=None, help="(symbol) Comma-separated kind set (overrides --kind)")
+    sp.add_argument("--system", default=None, help="(assets/strings) Filter to one owning system")
+    sp.add_argument("--asset-kind", default=None, help="(assets) Filter by asset kind (texture|audio|model|scene|material|vector|…)")
+    sp.add_argument("--key", default=None, help="(strings) Filter by localisation key (glob OK)")
+    sp.add_argument("--file", default=None, help="(strings) Filter to one file")
     sp.set_defaults(func=cmd_query)
+
+    sp = sub.add_parser("diff",
+                        help="Structural delta between two git refs (systems, edges, contracts)")
+    sp.add_argument("range", help="Ref range, e.g. 'HEAD~5..HEAD' or 'v0.1.0..main'")
+    sp.add_argument("--format", choices=["json", "md"], default="json")
+    sp.set_defaults(func=cmd_diff)
 
     sp = sub.add_parser("hooks", help="Git hook management")
     sp.add_argument("action", choices=["install", "uninstall"])
