@@ -1,6 +1,6 @@
 """Query surface for agents. Every function returns a small, typed JSON slice.
 
-Agents should prefer these over reading `.codemap/**/*.md`: the JSON is
+Agents should prefer these over reading `.mercator/**/*.md`: the JSON is
 smaller, typed, and scoped to the question. The .md views exist for humans
 browsing the repo, not for agent consumption.
 """
@@ -10,19 +10,19 @@ import json
 from pathlib import Path
 from typing import Iterable, List, Optional, Set, Union
 
-from codemap import SCHEMA_VERSION, paths, boundaries as boundaries_mod
-from codemap.stacks import rust as rust_stack
+from mercator import SCHEMA_VERSION, paths, boundaries as boundaries_mod
+from mercator.stacks import rust as rust_stack
 
 
 def _load_systems(project_root: Path) -> dict:
-    p = paths.codemap_dir(project_root) / "systems.json"
+    p = paths.mercator_dir(project_root) / "systems.json"
     if not p.is_file():
-        raise FileNotFoundError(".codemap/systems.json not found — run `codemap init` first")
+        raise FileNotFoundError("mercator systems.json not found — run `mercator init` first")
     return json.loads(p.read_text(encoding="utf-8"))
 
 
 def _load_contract(project_root: Path, system_name: str) -> Optional[dict]:
-    p = paths.codemap_dir(project_root) / "contracts" / f"{system_name}.json"
+    p = paths.mercator_dir(project_root) / "contracts" / f"{system_name}.json"
     if not p.is_file():
         return None
     return json.loads(p.read_text(encoding="utf-8"))
@@ -226,7 +226,7 @@ def boundaries(project_root: Path) -> dict:
         return {
             "query": "boundaries",
             "configured": False,
-            "note": "No .codemap/boundaries.json found. Author one to declare forbidden system-to-system edges (DMZs).",
+            "note": "No boundaries.json found. Author one to declare forbidden system-to-system edges (DMZs).",
             "rules": [],
             "violation_count": 0,
         }

@@ -1,4 +1,4 @@
-"""meta.json I/O — the single source of truth for codemap freshness."""
+"""meta.json I/O — the single source of truth for mercator freshness."""
 from __future__ import annotations
 
 import datetime
@@ -8,8 +8,8 @@ import subprocess
 from pathlib import Path
 from typing import Dict
 
-from codemap import SCHEMA_VERSION
-from codemap.detect import layer_support
+from mercator import SCHEMA_VERSION
+from mercator.detect import layer_support
 
 
 def _iso_now() -> str:
@@ -41,7 +41,7 @@ def _tool_versions(stack: str) -> Dict[str, str]:
     return versions
 
 
-def write(project_root: Path, codemap_dir: Path, stack: str) -> None:
+def write(project_root: Path, mercator_dir: Path, stack: str) -> None:
     payload = {
         "schema_version": SCHEMA_VERSION,
         "stack": stack,
@@ -50,13 +50,13 @@ def write(project_root: Path, codemap_dir: Path, stack: str) -> None:
         "tools": _tool_versions(stack),
         "layers": layer_support(stack),
     }
-    (codemap_dir / "meta.json").write_text(
+    (mercator_dir / "meta.json").write_text(
         json.dumps(payload, indent=2) + "\n", encoding="utf-8"
     )
 
 
-def read(codemap_dir: Path) -> dict:
-    path = codemap_dir / "meta.json"
+def read(mercator_dir: Path) -> dict:
+    path = mercator_dir / "meta.json"
     if not path.is_file():
         return {}
     return json.loads(path.read_text(encoding="utf-8"))

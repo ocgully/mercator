@@ -33,7 +33,7 @@ def render(doc: dict) -> str:
         f"**Files scanned**: {files_scanned}",
         f"**Public items**: {len(items)}",
         "",
-        "_Last-refresh timestamp is in `.codemap/meta.json`; this file is time-stable._",
+        "_Last-refresh timestamp is in `.mercator/meta.json`; this file is time-stable._",
         "",
     ]
 
@@ -80,8 +80,8 @@ def render(doc: dict) -> str:
               "Agents should query the CLI for a slice rather than reading this rendered view:",
               "",
               f"```",
-              f"codemap query contract {system}          # this data as JSON",
-              f"codemap query symbol <name>              # resolve symbol defs across workspace",
+              f"mercator query contract {system}          # this data as JSON",
+              f"mercator query symbol <name>              # resolve symbol defs across workspace",
               f"```",
               ""]
     return "\n".join(lines) + "\n"

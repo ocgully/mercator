@@ -1,12 +1,12 @@
 """Forbidden-edge boundaries — the inverse of a dep graph.
 
-A project's `.codemap/boundaries.json` declares which systems MUST NOT
+A project's `.mercator/boundaries.json` declares which systems MUST NOT
 reach which other systems — DMZ rules, layer separations, hexagonal-
 architecture guards, sim/view splits. The codemap evaluates these rules
 against the current Layer 1 dep graph and reports any violations with
 concrete paths.
 
-Schema (`.codemap/boundaries.json`):
+Schema (`.mercator/boundaries.json`):
 
 {
   "schema_version": "1",
@@ -39,8 +39,8 @@ intermediate systems. `transitive: false` only reports direct edges.
 
 Severity tiers:
   info     — factual state, no action required; emitted in output
-  warning  — worth reviewing; does not fail `codemap check`
-  error    — fails `codemap check` (exit 1); CI-blocking
+  warning  — worth reviewing; does not fail `mercator check`
+  error    — fails `mercator check` (exit 1); CI-blocking
 
 A file's absence is not an error — projects with no boundaries get an
 empty rule set and pass `check` trivially.
@@ -61,10 +61,14 @@ SEVERITIES = ("info", "warning", "error")
 
 
 def load(project_root: Path) -> dict:
-    """Load `.codemap/boundaries.json`; return `{}` if absent."""
-    path = project_root / ".codemap" / "boundaries.json"
+    """Load `.mercator/boundaries.json` (or legacy `.codemap/boundaries.json`); return `{}` if absent."""
+    path = project_root / ".mercator" / "boundaries.json"
     if not path.is_file():
-        return {}
+        legacy = project_root / ".codemap" / "boundaries.json"
+        if legacy.is_file():
+            path = legacy
+        else:
+            return {}
     try:
         doc = json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
@@ -249,13 +253,13 @@ def has_blocking_violations(violations: List[dict]) -> bool:
 
 
 # ---------------------------------------------------------------------------
-# Scaffold template for `codemap boundaries init`
+# Scaffold template for `mercator boundaries init`
 # ---------------------------------------------------------------------------
 
 SCAFFOLD_JSON = """{
   "schema_version": "1",
 
-  "_doc": "Edit this file to declare forbidden system-to-system edges (DMZs). Run `codemap check` after editing to see violations. Delete this _doc field when done.",
+  "_doc": "Edit this file to declare forbidden system-to-system edges (DMZs). Run `mercator check` after editing to see violations. Delete this _doc field when done.",
 
   "layers": {
     "_doc": "Optional: group systems under layer names so rules read naturally. Values can be exact system names or glob patterns (fnmatch-style: `view_*`). Remove this _doc entry after editing.",

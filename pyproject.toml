@@ -3,14 +3,14 @@ requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "codemap"
-version = "0.3.0"
+name = "mercator"
+version = "0.4.0"
 description = "Layered, AI-friendly codemap CLI for agent consumption. Produces systems/contracts/symbols slices in JSON."
 readme = "README.md"
 requires-python = ">=3.8"
 license = { text = "MIT" }
 authors = [{ name = "Christopher Gulliver" }]
-keywords = ["codemap", "ai", "agents", "code-intelligence", "rust", "unity", "dart"]
+keywords = ["mercator", "codemap", "ai", "agents", "code-intelligence", "rust", "unity", "dart"]
 classifiers = [
   "Development Status :: 4 - Beta",
   "Intended Audience :: Developers",
@@ -25,13 +25,17 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/ocgully/codemap"
-Repository = "https://github.com/ocgully/codemap"
-Issues = "https://github.com/ocgully/codemap/issues"
+Homepage = "https://github.com/ocgully/mercator"
+Repository = "https://github.com/ocgully/mercator"
+Issues = "https://github.com/ocgully/mercator/issues"
 
 [project.scripts]
-codemap = "codemap.cli:main"
+# New primary entry point.
+mercator = "mercator.cli:main"
+# Deprecation shim — prints a stderr warning and forwards to mercator.
+# Scheduled for removal in the release after next.
+codemap = "mercator.cli:deprecated_main"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["codemap*"]
+include = ["mercator*"]

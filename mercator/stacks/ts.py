@@ -33,7 +33,7 @@ import re
 from pathlib import Path, PurePath
 from typing import Dict, List, Optional, Set, Tuple
 
-from codemap import SCHEMA_VERSION
+from mercator import SCHEMA_VERSION
 
 
 # Directories we never descend into when expanding workspace globs or
@@ -53,6 +53,7 @@ SKIP_DIRS = {
     ".turbo",
     ".cache",
     ".codemap",
+    ".mercator",
 }
 
 

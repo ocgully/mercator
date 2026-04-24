@@ -5,14 +5,14 @@ import json
 from pathlib import Path
 from typing import Iterable, List, Optional, Set
 
-from codemap import meta, paths
-from codemap import boundaries as boundaries_mod
-from codemap.detect import detect
-from codemap.render import systems_md, contract_md, graph_md, boundaries_md
-from codemap.stacks import rust, unity, dart, ts
-from codemap.stacks import rust_assets, unity_assets, dart_assets
+from mercator import meta, paths
+from mercator import boundaries as boundaries_mod
+from mercator.detect import detect
+from mercator.render import systems_md, contract_md, graph_md, boundaries_md
+from mercator.stacks import rust, unity, dart, ts
+from mercator.stacks import rust_assets, unity_assets, dart_assets
 
-from codemap import SCHEMA_VERSION
+from mercator import SCHEMA_VERSION
 
 
 def _write_json(path: Path, data: dict) -> None:
@@ -94,7 +94,7 @@ def _empty_layer4(stack: str, layer: str) -> dict:
 
 
 def _refresh_layer4(stack: str, project_root: Path, codemap_dir: Path) -> None:
-    """Write .codemap/assets.json + .codemap/strings.json for the active stack.
+    """Write .mercator/assets.json + .mercator/strings.json for the active stack.
 
     Stacks without a Layer 4 module get a `status: not_implemented` payload so
     callers always find a valid JSON document at the expected path. Any
@@ -140,8 +140,8 @@ def _refresh_layer4(stack: str, project_root: Path, codemap_dir: Path) -> None:
 
 
 def refresh(project_root: Path, *, affected: Optional[Set[str]] = None) -> dict:
-    """Regenerate all codemap artefacts (or only `affected` systems' Layer 2)."""
-    codemap_dir = paths.ensure_codemap_dir(project_root)
+    """Regenerate all mercator artefacts (or only `affected` systems' Layer 2)."""
+    codemap_dir = paths.ensure_mercator_dir(project_root)
     stack = detect(project_root)
     meta.write(project_root, codemap_dir, stack)
 
@@ -170,12 +170,12 @@ def refresh(project_root: Path, *, affected: Optional[Set[str]] = None) -> dict:
     if affected is None:
         _refresh_layer4(stack, project_root, codemap_dir)
 
-    # Visual views regenerate every refresh so `.codemap/graph.md` +
+    # Visual views regenerate every refresh so `.mercator/graph.md` +
     # `boundaries.md` stay current alongside the JSON sources of truth.
     try:
         bnd_doc = boundaries_mod.load(project_root)
     except ValueError:
-        bnd_doc = {}  # Keep refresh atomic — surface the error via `codemap check`.
+        bnd_doc = {}  # Keep refresh atomic — surface the error via `mercator check`.
     (codemap_dir / "graph.md").write_text(graph_md.render(systems_doc, bnd_doc), encoding="utf-8")
     (codemap_dir / "boundaries.md").write_text(boundaries_md.render(systems_doc, bnd_doc), encoding="utf-8")
 
@@ -208,7 +208,7 @@ def refresh(project_root: Path, *, affected: Optional[Set[str]] = None) -> dict:
 
 def files_to_affected_systems(project_root: Path, changed_files: Iterable[str]) -> Set[str]:
     """Map a list of changed file paths to the set of system names to regen."""
-    systems_doc = _load_systems(paths.codemap_dir(project_root))
+    systems_doc = _load_systems(paths.mercator_dir(project_root))
     if not systems_doc:
         return set()
     stack = systems_doc.get("stack", "")

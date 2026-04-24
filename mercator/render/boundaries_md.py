@@ -1,23 +1,23 @@
-"""Render `.codemap/boundaries.md` — human-readable DMZ rule listing.
+"""Render `.mercator/boundaries.md` — human-readable DMZ rule listing.
 
 Per-rule pass/fail + resolved system sets. Intended for humans reviewing the
-contract; the authoritative source is `.codemap/boundaries.json`.
+contract; the authoritative source is `.mercator/boundaries.json`.
 """
 from __future__ import annotations
 
 from typing import List
 
-from codemap import boundaries as boundaries_mod
+from mercator import boundaries as boundaries_mod
 
 
 def render(systems_doc: dict, boundaries_doc: dict) -> str:
     lines: List[str] = [
-        "# Codemap — Boundaries (DMZ rules)",
+        "# Mercator — Boundaries (DMZ rules)",
         "",
-        "Forbidden system-to-system edges declared in `.codemap/boundaries.json`.",
-        "This file regenerates on every `codemap refresh` / `codemap render`.",
+        "Forbidden system-to-system edges declared in `.mercator/boundaries.json`.",
+        "This file regenerates on every `mercator refresh` / `mercator render`.",
         "",
-        "_Authoritative source: `.codemap/boundaries.json`. Edit that, not this file._",
+        "_Authoritative source: `.mercator/boundaries.json`. Edit that, not this file._",
         "",
     ]
 
@@ -25,7 +25,7 @@ def render(systems_doc: dict, boundaries_doc: dict) -> str:
         lines += [
             "## No boundaries configured",
             "",
-            "Run `codemap boundaries init` to scaffold a `.codemap/boundaries.json`",
+            "Run `mercator boundaries init` to scaffold a `.mercator/boundaries.json`",
             "with examples and inline schema comments.",
             "",
         ]
@@ -41,7 +41,7 @@ def render(systems_doc: dict, boundaries_doc: dict) -> str:
     lines += [
         f"## Summary — {len(rules)} rule(s), {len(violations)} violation(s)",
         "",
-        f"- **Errors**: {err_n}  (`codemap check` will fail CI if > 0)",
+        f"- **Errors**: {err_n}  (`mercator check` will fail CI if > 0)",
         f"- **Warnings**: {warn_n}",
         f"- **Infos**: {info_n}",
         "",
@@ -106,10 +106,10 @@ def render(systems_doc: dict, boundaries_doc: dict) -> str:
     lines += [
         "## How to change the rules",
         "",
-        "1. Edit `.codemap/boundaries.json` — add / remove rules or tweak selectors",
-        "2. `codemap boundaries validate` — check for typos (empty selector resolutions)",
-        "3. `codemap check` — see which rules pass or fail",
-        "4. `codemap render` — regenerate this view (also runs on every `codemap refresh`)",
+        "1. Edit `.mercator/boundaries.json` — add / remove rules or tweak selectors",
+        "2. `mercator boundaries validate` — check for typos (empty selector resolutions)",
+        "3. `mercator check` — see which rules pass or fail",
+        "4. `mercator render` — regenerate this view (also runs on every `mercator refresh`)",
         "",
     ]
     return "\n".join(lines) + "\n"

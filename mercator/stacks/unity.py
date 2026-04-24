@@ -21,7 +21,7 @@ import json
 from pathlib import Path, PurePath
 from typing import Dict, List, Optional, Tuple
 
-from codemap import SCHEMA_VERSION
+from mercator import SCHEMA_VERSION
 
 
 def _strip_bom(text: str) -> str:

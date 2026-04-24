@@ -16,7 +16,7 @@ import re
 from pathlib import Path, PurePath
 from typing import List, Optional
 
-from codemap import SCHEMA_VERSION
+from mercator import SCHEMA_VERSION
 
 
 SKIP_DIRS = {".dart_tool", "build", ".pub-cache", "node_modules", ".git"}

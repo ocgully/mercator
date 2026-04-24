@@ -1,7 +1,7 @@
 """Rust stack — Layers 1 (cargo metadata), 2 (pub-item scan), 3 (definition lookup).
 
 All paths emitted into JSON are relative to the project root so committed
-`.codemap/` files are portable.
+`.mercator/` files are portable.
 """
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ import subprocess
 from pathlib import Path, PurePath
 from typing import Iterable, List, Optional, Set
 
-from codemap import SCHEMA_VERSION
+from mercator import SCHEMA_VERSION
 
 
 # ---------------------------------------------------------------------------

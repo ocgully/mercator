@@ -19,12 +19,12 @@ import re
 from pathlib import Path, PurePath
 from typing import Dict, List, Optional, Tuple
 
-from codemap import SCHEMA_VERSION
-from codemap.stacks._asset_common import classify, safe_size
+from mercator import SCHEMA_VERSION
+from mercator.stacks._asset_common import classify, safe_size
 
 
 ASSET_DIRS = ("assets", "res", "resources", "static")
-SKIP_DIRS = {"target", ".git", "node_modules", ".cargo", ".codemap"}
+SKIP_DIRS = {"target", ".git", "node_modules", ".cargo", ".codemap", ".mercator"}
 
 # UI setter methods that conventionally take a user-facing string.
 # Matched as `.<ident>(` followed by a string literal. Extremely conservative.

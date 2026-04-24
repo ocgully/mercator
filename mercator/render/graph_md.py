@@ -1,4 +1,4 @@
-"""Render `.codemap/graph.md` — a human-viewable visual of systems + boundaries.
+"""Render `.mercator/graph.md` — a human-viewable visual of systems + boundaries.
 
 Output uses mermaid.js — renders natively in GitHub, VS Code, Obsidian, most
 markdown tools. Zero install, deterministic, diff-clean. Agents may also
@@ -19,7 +19,7 @@ from __future__ import annotations
 import fnmatch
 from typing import Dict, Iterable, List, Set, Tuple
 
-from codemap import boundaries as boundaries_mod
+from mercator import boundaries as boundaries_mod
 
 
 MERMAID_NODE_LIMIT = 50
@@ -71,7 +71,7 @@ def render(systems_doc: dict, boundaries_doc: dict) -> str:
                     forbidden_pairs.add((a, b))
 
     lines: List[str] = [
-        "# Codemap — Visual View",
+        "# Mercator — Visual View",
         "",
         f"**Stack**: {stack}",
         f"**Systems**: {len(systems)}",
@@ -79,7 +79,7 @@ def render(systems_doc: dict, boundaries_doc: dict) -> str:
         f"**DMZ rules**: {len(rules)}",
         f"**Violations**: {len(violations)}" + ("  **⚠**" if violations else ""),
         "",
-        "_This file regenerates on every `codemap refresh` or `codemap render`. Do not edit by hand — edit `.codemap/boundaries.json` and rerun. Renders natively in GitHub, VS Code, Obsidian._",
+        "_This file regenerates on every `mercator refresh` or `mercator render`. Do not edit by hand — edit `.mercator/boundaries.json` and rerun. Renders natively in GitHub, VS Code, Obsidian._",
         "",
     ]
 
@@ -96,7 +96,7 @@ def render(systems_doc: dict, boundaries_doc: dict) -> str:
     # ------------------------- 2. DMZ / boundaries -------------------------
     if rules:
         lines += ["## 2. DMZ rules (what must never be)", "",
-                  "Red dashed edges are **forbidden** by `.codemap/boundaries.json`. Solid red edges (if any) are live violations.",
+                  "Red dashed edges are **forbidden** by `.mercator/boundaries.json`. Solid red edges (if any) are live violations.",
                   ""]
         if len(systems) > MERMAID_NODE_LIMIT:
             lines += [f"_Diagram suppressed ({len(systems)} systems > {MERMAID_NODE_LIMIT})._", ""]
@@ -104,7 +104,7 @@ def render(systems_doc: dict, boundaries_doc: dict) -> str:
             lines += _mermaid_boundary_graph(systems, edges, forbidden_pairs, violation_edges, layers)
     else:
         lines += ["## 2. DMZ rules", "",
-                  "No `.codemap/boundaries.json` configured. Run `codemap boundaries init` to scaffold one.",
+                  "No `.mercator/boundaries.json` configured. Run `mercator boundaries init` to scaffold one.",
                   ""]
 
     # ------------------------- 3. Violations detail ------------------------
@@ -125,9 +125,9 @@ def render(systems_doc: dict, boundaries_doc: dict) -> str:
     lines += [
         "## How to edit",
         "",
-        "- **Add / edit DMZ rules**: open `.codemap/boundaries.json` (scaffold with `codemap boundaries init`).",
-        "- **Re-render this file**: `codemap render` (also runs automatically on every `codemap refresh`).",
-        "- **CI gate**: `codemap check` exits 1 if any `error`-severity rule is violated.",
+        "- **Add / edit DMZ rules**: open `.mercator/boundaries.json` (scaffold with `mercator boundaries init`).",
+        "- **Re-render this file**: `mercator render` (also runs automatically on every `mercator refresh`).",
+        "- **CI gate**: `mercator check` exits 1 if any `error`-severity rule is violated.",
         "",
     ]
     return "\n".join(lines) + "\n"

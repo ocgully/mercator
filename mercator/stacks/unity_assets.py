@@ -24,9 +24,9 @@ import re
 from pathlib import Path, PurePath
 from typing import Dict, List, Optional, Tuple
 
-from codemap import SCHEMA_VERSION
-from codemap.stacks._asset_common import classify, safe_size
-from codemap.stacks import unity as unity_stack
+from mercator import SCHEMA_VERSION
+from mercator.stacks._asset_common import classify, safe_size
+from mercator.stacks import unity as unity_stack
 
 
 META_SUFFIX = ".meta"

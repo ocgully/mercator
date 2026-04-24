@@ -1,7 +1,7 @@
 """Structural diff between two git refs.
 
-Given two refs, read each ref's `.codemap/systems.json` + per-system
-`.codemap/contracts/*.json` via `git show <ref>:<path>` and emit a small,
+Given two refs, read each ref's `.mercator/systems.json` + per-system
+`.mercator/contracts/*.json` via `git show <ref>:<path>` and emit a small,
 typed delta describing:
 
 - Systems added / removed (by name).
@@ -9,9 +9,10 @@ typed delta describing:
   aren't workspace systems and would be noise).
 - Per-system public-surface additions / removals from Layer-2 contracts.
 
-Designed to work on any commit that has `.codemap/` committed. If a ref has
-no `.codemap/systems.json`, that side is treated as empty and the diff still
-runs — useful for "what did we gain when we introduced codemap?".
+Designed to work on any commit that has `.mercator/` (or the legacy
+`.codemap/`) committed. If a ref has no systems.json at either path, that
+side is treated as empty and the diff still runs — useful for "what did
+we gain when we introduced the codemap?".
 
 No external deps. Uses only subprocess + json + stdlib.
 """
@@ -23,8 +24,12 @@ from pathlib import Path
 from typing import Iterable, List, Optional, Set, Tuple
 
 
-SYSTEMS_PATH = ".codemap/systems.json"
-CONTRACT_DIR = ".codemap/contracts"
+# Preferred path; legacy `.codemap/` is consulted if the preferred path is
+# absent at a given ref (for diffs that straddle the rename).
+SYSTEMS_PATH = ".mercator/systems.json"
+CONTRACT_DIR = ".mercator/contracts"
+LEGACY_SYSTEMS_PATH = ".codemap/systems.json"
+LEGACY_CONTRACT_DIR = ".codemap/contracts"
 
 
 # ---------------------------------------------------------------------------
@@ -75,6 +80,9 @@ def _ls_tree(project_root: Path, ref: str, path: str) -> List[str]:
 def _load_systems_at_ref(project_root: Path, ref: str) -> dict:
     raw = _show(project_root, ref, SYSTEMS_PATH)
     if raw is None:
+        # Fall back to legacy path for refs predating the rename.
+        raw = _show(project_root, ref, LEGACY_SYSTEMS_PATH)
+    if raw is None:
         return {"systems": []}
     try:
         return json.loads(raw)
@@ -84,6 +92,8 @@ def _load_systems_at_ref(project_root: Path, ref: str) -> dict:
 
 def _load_contract_at_ref(project_root: Path, ref: str, system: str) -> Optional[dict]:
     raw = _show(project_root, ref, f"{CONTRACT_DIR}/{system}.json")
+    if raw is None:
+        raw = _show(project_root, ref, f"{LEGACY_CONTRACT_DIR}/{system}.json")
     if raw is None:
         return None
     try:
@@ -202,7 +212,7 @@ def render_diff_md(diff: dict) -> str:
     """Human-readable markdown summary of a diff dict produced by compute_diff."""
     refs = diff.get("refs", {})
     lines: List[str] = []
-    lines.append(f"# codemap diff {refs.get('from', '?')} .. {refs.get('to', '?')}")
+    lines.append(f"# mercator diff {refs.get('from', '?')} .. {refs.get('to', '?')}")
     lines.append("")
 
     sys_added = diff.get("systems", {}).get("added", [])

@@ -22,7 +22,7 @@ def render(doc: dict) -> str:
         f"**Stack**: {stack}",
         f"**Workspace members**: {len(systems)}",
         "",
-        "_Last-refresh timestamp is in `.codemap/meta.json`; this file is time-stable._",
+        "_Last-refresh timestamp is in `.mercator/meta.json`; this file is time-stable._",
         "",
     ]
 
@@ -114,10 +114,10 @@ def render(doc: dict) -> str:
               "Agents should query the CLI rather than reading this file directly:",
               "",
               "```",
-              "codemap query systems                  # this view as JSON",
-              "codemap query deps <system>            # dependents + dependencies",
-              "codemap query touches <file-path>      # which system owns this path",
-              "codemap query system <name>            # Layer 1 + 2 slice for one system",
+              "mercator query systems                  # this view as JSON",
+              "mercator query deps <system>            # dependents + dependencies",
+              "mercator query touches <file-path>      # which system owns this path",
+              "mercator query system <name>            # Layer 1 + 2 slice for one system",
               "```",
               ""]
     return "\n".join(lines) + "\n"
