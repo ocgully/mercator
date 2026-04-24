@@ -56,13 +56,30 @@ def find_project_root(start: Optional[Path] = None) -> Path:
     return start
 
 
+_OVERRIDE: Optional[Path] = None
+
+
+def set_storage_override(path: Optional[Path]) -> None:
+    """Redirect where mercator reads and writes its storage dir.
+
+    Used by the `--storage-dir` CLI flag so you can explore a project
+    without planting `.mercator/` inside it. Path can be absolute or
+    relative; it's treated as the full storage dir (NOT a parent that
+    gets a `.mercator/` appended).
+    """
+    global _OVERRIDE
+    _OVERRIDE = path.resolve() if path is not None else None
+
+
 def mercator_dir(project_root: Path) -> Path:
     """Return the storage-dir path, preferring `.mercator/` but falling
     back to `.codemap/` if only the legacy dir exists.
 
-    New directories are always created as `.mercator/`. Reads tolerate the
-    legacy name so the migration is non-destructive.
+    Honours `set_storage_override(...)` — when an override is set, that
+    path is returned verbatim regardless of project_root.
     """
+    if _OVERRIDE is not None:
+        return _OVERRIDE
     new = project_root / STORAGE_DIR
     if new.is_dir():
         return new
@@ -83,6 +100,22 @@ def ensure_mercator_dir(project_root: Path) -> Path:
     # If only the legacy dir exists, we keep writing into it so subsequent
     # reads through `mercator_dir()` stay consistent — but do NOT rename
     # implicitly. Explicit rename is `mercator migrate`.
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+def project_storage_dir(repo_storage: Path, project_id: str) -> Path:
+    """Return the per-project storage path: `<repo_storage>/projects/<id>/`.
+
+    This is where every project's Layer 1+2+3+4 artefacts live under the
+    new (always-nested) layout. A repo with one project still nests — the
+    atlas decides how to render based on the count.
+    """
+    return repo_storage / "projects" / project_id
+
+
+def ensure_project_storage_dir(repo_storage: Path, project_id: str) -> Path:
+    d = project_storage_dir(repo_storage, project_id)
     d.mkdir(parents=True, exist_ok=True)
     (d / "contracts").mkdir(exist_ok=True)
     (d / "symbols").mkdir(exist_ok=True)

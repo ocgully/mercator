@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mercator"
-version = "0.4.0"
+version = "0.5.0"
 description = "Layered, AI-friendly codemap CLI for agent consumption. Produces systems/contracts/symbols slices in JSON."
 readme = "README.md"
 requires-python = ">=3.8"
@@ -39,3 +39,10 @@ codemap = "mercator.cli:deprecated_main"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["mercator*"]
+
+[tool.setuptools.package-data]
+"mercator.render.atlas" = [
+  "templates/*.html",
+  "static/*.css",
+  "static/*.js",
+]

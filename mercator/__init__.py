@@ -11,5 +11,5 @@ Public API (for agents that import the package rather than invoking the CLI):
 Each returns a JSON-serialisable dict. See `mercator.cli` for the command
 surface. Schema version is "1" — consumers check `meta.json.schema_version`.
 """
-__version__ = "0.4.0"
+__version__ = "0.5.0"
 SCHEMA_VERSION = "1"

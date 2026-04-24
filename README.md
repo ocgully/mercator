@@ -1,9 +1,19 @@
 # mercator
 
-A layered, AI-friendly codemap CLI. Produces structured views of a project's
-code (systems → contracts → symbols → assets) under `.mercator/`, and — more
-importantly — exposes a **query API** that agents use to pull minimal,
+A layered, AI-friendly codemap CLI for **monorepos and single-project repos**.
+Produces structured views of every project in a repo
+(projects → systems → contracts → symbols → assets) under `.mercator/`, and —
+more importantly — exposes a **query API** that agents use to pull minimal,
 typed slices on demand instead of reading whole MD files.
+
+A **project** is a self-contained build unit identified by a stack manifest
+(`Cargo.toml`, `package.json`, `pyproject.toml`, `pubspec.yaml`, ...). A repo
+has 1..N projects. Mercator detects them automatically, refreshes them in
+isolation, and infers implicit cross-project edges (an `apps/web` consuming
+`packages/shared` shows up as a real graph edge). The atlas adapts to the
+project count: single-project repos get a familiar single-page atlas;
+multi-project repos get a repo overview page with a project-graph + cards
+linking into per-project atlases.
 
 > **Renamed from `codemap`** (April 2026). Honours Gerardus Mercator, who
 > published the first book to use "atlas" as the term for a collection of
@@ -59,21 +69,24 @@ convenient; the shim will be removed in the release after next.
 
 ## Quick start
 
-From a project root:
+From a repo root:
 
 ```bash
-mercator init
+mercator init                             # detect projects, refresh all, render atlas
+mercator projects list                    # see what was detected
 ```
 
-Then — from any working directory inside the project — query:
+Then — from any working directory inside the repo — query:
 
 ```bash
-mercator query systems                    # Layer 1, full view
-mercator query deps <system>              # who depends on / is depended by
-mercator query contract <system>          # Layer 2, public surface (Rust today)
-mercator query symbol <name>              # Layer 3 def lookup
-mercator query touches <path>             # which system owns this file?
-mercator query system <name>              # composite: Layer 1 entry + deps + contract
+mercator query projects                   # repo-level: detected projects
+mercator query repo-edges                 # implicit cross-project edges
+mercator query systems --project <id>     # Layer 1 for one project (--project optional when N=1)
+mercator query deps <system> --project <id>
+mercator query contract <system> --project <id>
+mercator query symbol <name> --project <id>
+mercator query touches <path>             # locates project + system; works repo-wide
+mercator query system <name> --project <id>
 ```
 
 Install the git hook so the map stays current:
@@ -135,33 +148,54 @@ Severity:
 
 ## Human-viewable visual output
 
-`mercator refresh` regenerates two human-readable files alongside the JSON:
+`mercator refresh` regenerates three human-readable artefacts alongside the JSON:
 
 - `.mercator/graph.md` — mermaid diagrams of the dep graph and the DMZ overlay (forbidden edges dashed red, violations drawn prominently). Layers appear as mermaid subgraphs so grouping is visible at a glance.
 - `.mercator/boundaries.md` — pass/fail table for every rule, resolved system sets, violation paths with rationales.
+- `.mercator/atlas.html` — a single-file interactive **code atlas** (think "modern doxygen"): searchable systems/symbols, per-system dep subgraphs, DMZ overlay, assets/strings browsers, and a **query console** that builds the exact `mercator query ...` invocation each view maps to. Double-click to open — no server, no build step.
 
-Both files render natively in GitHub, VS Code's markdown preview, Obsidian,
-and any tool that understands mermaid code blocks — no LLM and no extra
-install required. They are **derived outputs**: edit `boundaries.json`,
-run `mercator refresh`, views regenerate deterministically.
+Markdown files render natively in GitHub, VS Code's markdown preview, Obsidian,
+and any tool that understands mermaid code blocks. The atlas opens in any
+browser from a `file://` URL (Mermaid is loaded from a CDN, with a graceful
+fallback to source when offline). All three are **derived outputs**: edit
+`boundaries.json`, run `mercator refresh`, views regenerate deterministically.
 
 Use `mercator render` to regenerate just the visual views without touching
 Layer 1/2 JSON (useful when you've only edited `boundaries.json`).
+Use `mercator atlas` to regenerate only the atlas; `--open` also opens it in
+your default browser.
 
 ## What you get under `.mercator/`
 
 ```
 .mercator/
-├── README.md                  pointer to this tool
-├── meta.json                  stack, tool versions, last-refresh time, git HEAD
-├── systems.json               Layer 1 (all systems + deps)
-├── systems.md                 Layer 1 rendered (table + mermaid, ≤20 nodes)
-├── contracts/
-│   ├── {system}.json          Layer 2 per system (Rust today)
-│   └── {system}.md            Layer 2 rendered (humans only)
-├── symbols/                   Layer 3 is queried on demand; no persisted index yet
-└── assets/                    Layer 4 stub
+├── projects.json              detected projects (auto, source of truth for layout)
+├── repo-edges.json            implicit cross-project edges
+├── repo.toml                  optional overrides (include/exclude/per-project tags)
+├── meta.json                  repo-level: schema, generated_at, git HEAD
+├── atlas.html                 interactive code atlas (entry point)
+├── atlas/
+│   └── projects/
+│       └── {id}.html          per-project atlas (multi-project repos only)
+└── projects/
+    └── {id}/                  one slot per detected project
+        ├── meta.json          stack, tool versions, last refresh, git HEAD
+        ├── systems.json       Layer 1 (all systems + deps)
+        ├── systems.md         Layer 1 rendered (humans)
+        ├── contracts/
+        │   ├── {system}.json  Layer 2 per system
+        │   └── {system}.md    Layer 2 rendered
+        ├── boundaries.json    user-authored DMZ rules (optional)
+        ├── boundaries.md      pass/fail table (humans)
+        ├── graph.md           dependency + DMZ mermaid diagrams (humans)
+        ├── assets.json        Layer 4
+        └── strings.json       Layer 4
 ```
+
+The layout is identical for single-project and multi-project repos — the
+atlas decides how to render based on `projects.json`. A single-project repo
+gets the per-project atlas at `atlas.html`; a multi-project repo gets the
+repo overview there, with per-project pages under `atlas/projects/<id>.html`.
 
 Committing `.mercator/` into the repo is recommended — structural-change
 history over time is valuable, and the outputs are deterministic + free of
@@ -182,28 +216,49 @@ Unknown stacks exit with code 3 and a message listing what would unlock support.
 
 ## CLI reference
 
+Repo-level (no `--project` needed):
+
 ```
-mercator init                       Detect stack, init .mercator/, run all implemented layers
-mercator refresh                    Full regenerate
-mercator refresh --files …          Incremental — regen only systems whose files changed
-mercator info                       Project root, detected stack, meta.json
+mercator init                       Detect projects, refresh all, render atlas
+mercator refresh                    Full regenerate (every project)
+mercator refresh --project <id>     Refresh one project
+mercator refresh --files …          Incremental — auto-attribute files to projects
+mercator projects list              Show detected projects
+mercator projects detect            Re-run project detection (write projects.json)
+mercator query projects             Repo-level project manifest as JSON
+mercator query repo-edges           Implicit cross-project edges
+mercator query touches <path>       Which project + system owns this file
+mercator atlas [--open]             Regenerate `.mercator/atlas.html`
+mercator render                     Regenerate visual views (graph.md, boundaries.md, atlas)
+mercator check                      CI gate — exit 1 on error-severity DMZ violation across ALL projects
+mercator info                       Repo root, detected stack(s), meta.json
 mercator hooks install              Install post-commit git hook
 mercator hooks uninstall            Remove it
-mercator migrate                    Rename legacy .codemap/ to .mercator/ + rewrite internal refs
-mercator render                     Regenerate visual views (.mercator/graph.md + boundaries.md)
-mercator check                      CI gate — exit 1 on error-severity DMZ violation
-mercator boundaries init            Scaffold a .mercator/boundaries.json template
-mercator boundaries validate        Check selectors resolve to real systems
+mercator migrate                    Rename legacy `.codemap/` to `.mercator/`
+```
+
+Project-scoped (`--project <id>` is required when the repo has >1 project):
+
+```
 mercator query systems              Full Layer 1 JSON
 mercator query deps <system>        Dependents + dependencies
 mercator query contract <system>    Layer 2 per-system JSON
 mercator query symbol <name>        Layer 3 def lookup (--kind, --kinds)
-mercator query touches <path>       Which system owns this file
 mercator query system <name>        Layer 1 entry + edges + Layer 2 combined
 mercator query boundaries           DMZ rules + per-rule pass/fail
 mercator query violations           Just the failing rules, with paths
-mercator --help                     Full help
-mercator --version                  Version + schema version
+mercator query assets               Layer 4 asset inventory (--system, --asset-kind)
+mercator query strings              Layer 4 user-facing strings (--system, --key, --file)
+mercator boundaries init            Scaffold this project's boundaries.json
+mercator boundaries validate        Check selectors resolve to real systems
+```
+
+Global flags:
+
+```
+--project-root <path>               Override repo-root detection
+--storage-dir <path>                Redirect .mercator/ storage (analyse a project without writing inside it)
+--version                           Version + schema version
 ```
 
 All `query` output is JSON; agents parse it directly. The `.md` files under

@@ -1,15 +1,43 @@
-"""Full and incremental refresh across stacks."""
+"""Per-project refresh — drives Layer 1+2+4 generation across all detected projects.
+
+Storage layout (always nested):
+
+    .mercator/
+    ├── projects.json                 # detected projects (this version)
+    ├── meta.json                     # repo-level: schema, generated_at, git HEAD
+    ├── atlas.html                    # interactive code atlas (entry point)
+    └── projects/
+        └── <project-id>/
+            ├── meta.json             # per-project meta
+            ├── systems.json          # Layer 1
+            ├── systems.md            # rendered for humans
+            ├── contracts/            # Layer 2 per system
+            ├── boundaries.json       # user-authored DMZ rules (optional)
+            ├── boundaries.md         # rendered
+            ├── graph.md              # mermaid dep graph (humans)
+            ├── assets.json           # Layer 4
+            └── strings.json          # Layer 4
+
+A repo with one project still uses the nested layout — the atlas decides
+how to render based on `project_count`. Existing flat-layout repos
+(0.4.x or earlier) auto-migrate on first refresh: regenerable artefacts
+are deleted, user-authored `boundaries.json` is preserved by relocating
+it under the auto-detected project's slot.
+"""
 from __future__ import annotations
 
 import json
+import shutil
 from pathlib import Path
 from typing import Iterable, List, Optional, Set
 
 from mercator import meta, paths
 from mercator import boundaries as boundaries_mod
+from mercator import projects as projects_mod
+from mercator import repo_edges as repo_edges_mod
 from mercator.detect import detect
-from mercator.render import systems_md, contract_md, graph_md, boundaries_md
-from mercator.stacks import rust, unity, dart, ts
+from mercator.render import systems_md, contract_md, graph_md, boundaries_md, write_atlas
+from mercator.stacks import rust, unity, dart, ts, python
 from mercator.stacks import rust_assets, unity_assets, dart_assets
 
 from mercator import SCHEMA_VERSION
@@ -19,58 +47,68 @@ def _write_json(path: Path, data: dict) -> None:
     path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
 
-def _load_systems(codemap_dir: Path) -> Optional[dict]:
-    p = codemap_dir / "systems.json"
-    if not p.is_file():
-        return None
-    return json.loads(p.read_text(encoding="utf-8"))
-
-
 # ---------------------------------------------------------------------------
-# Full refresh
+# Per-stack Layer 1+2 dispatch
 # ---------------------------------------------------------------------------
 
-def _refresh_rust(project_root: Path, codemap_dir: Path, affected: Optional[Set[str]]):
-    systems_doc = rust.build_systems(project_root)
-    _write_json(codemap_dir / "systems.json", systems_doc)
-    (codemap_dir / "systems.md").write_text(systems_md.render(systems_doc), encoding="utf-8")
+def _refresh_rust(project_dir: Path, project_storage: Path, affected: Optional[Set[str]]):
+    systems_doc = rust.build_systems(project_dir)
+    _write_json(project_storage / "systems.json", systems_doc)
+    (project_storage / "systems.md").write_text(systems_md.render(systems_doc), encoding="utf-8")
 
-    contracts_dir = codemap_dir / "contracts"
+    contracts_dir = project_storage / "contracts"
     contracts_dir.mkdir(exist_ok=True)
-
     written = 0
     for s in systems_doc["systems"]:
         name = s["name"]
         if affected is not None and name not in affected:
             continue
         manifest_rel = s["manifest_path"]
-        doc = rust.build_contract(project_root, name, manifest_rel)
+        doc = rust.build_contract(project_dir, name, manifest_rel)
         _write_json(contracts_dir / f"{name}.json", doc)
         (contracts_dir / f"{name}.md").write_text(contract_md.render(doc), encoding="utf-8")
         written += 1
-
     return systems_doc, written
 
 
-def _refresh_unity(project_root: Path, codemap_dir: Path, affected: Optional[Set[str]]):
-    systems_doc = unity.build_systems(project_root)
-    _write_json(codemap_dir / "systems.json", systems_doc)
-    (codemap_dir / "systems.md").write_text(systems_md.render(systems_doc), encoding="utf-8")
-    return systems_doc, 0  # no Layer 2 yet for Unity
-
-
-def _refresh_dart(project_root: Path, codemap_dir: Path, affected: Optional[Set[str]]):
-    systems_doc = dart.build_systems(project_root)
-    _write_json(codemap_dir / "systems.json", systems_doc)
-    (codemap_dir / "systems.md").write_text(systems_md.render(systems_doc), encoding="utf-8")
+def _refresh_unity(project_dir: Path, project_storage: Path, affected: Optional[Set[str]]):
+    systems_doc = unity.build_systems(project_dir)
+    _write_json(project_storage / "systems.json", systems_doc)
+    (project_storage / "systems.md").write_text(systems_md.render(systems_doc), encoding="utf-8")
     return systems_doc, 0
 
 
-def _refresh_ts(project_root: Path, codemap_dir: Path, affected: Optional[Set[str]]):
-    systems_doc = ts.build_systems(project_root)
-    _write_json(codemap_dir / "systems.json", systems_doc)
-    (codemap_dir / "systems.md").write_text(systems_md.render(systems_doc), encoding="utf-8")
+def _refresh_dart(project_dir: Path, project_storage: Path, affected: Optional[Set[str]]):
+    systems_doc = dart.build_systems(project_dir)
+    _write_json(project_storage / "systems.json", systems_doc)
+    (project_storage / "systems.md").write_text(systems_md.render(systems_doc), encoding="utf-8")
     return systems_doc, 0
+
+
+def _refresh_ts(project_dir: Path, project_storage: Path, affected: Optional[Set[str]]):
+    systems_doc = ts.build_systems(project_dir)
+    _write_json(project_storage / "systems.json", systems_doc)
+    (project_storage / "systems.md").write_text(systems_md.render(systems_doc), encoding="utf-8")
+    return systems_doc, 0
+
+
+def _refresh_python(project_dir: Path, project_storage: Path, affected: Optional[Set[str]]):
+    systems_doc = python.build_systems(project_dir)
+    _write_json(project_storage / "systems.json", systems_doc)
+    (project_storage / "systems.md").write_text(systems_md.render(systems_doc), encoding="utf-8")
+
+    contracts_dir = project_storage / "contracts"
+    contracts_dir.mkdir(exist_ok=True)
+    written = 0
+    for s in systems_doc["systems"]:
+        name = s["name"]
+        if affected is not None and name not in affected:
+            continue
+        doc = python.build_contract(project_dir, name, s["manifest_path"])
+        _write_json(contracts_dir / f"{name}.json", doc)
+        (contracts_dir / f"{name}.md").write_text(contract_md.render(doc), encoding="utf-8")
+        written += 1
+    return systems_doc, written
 
 
 # ---------------------------------------------------------------------------
@@ -78,7 +116,6 @@ def _refresh_ts(project_root: Path, codemap_dir: Path, affected: Optional[Set[st
 # ---------------------------------------------------------------------------
 
 def _empty_layer4(stack: str, layer: str) -> dict:
-    """Placeholder payload for stacks with no Layer 4 implementation yet."""
     key = "assets" if layer == "assets" else "strings"
     return {
         "schema_version": SCHEMA_VERSION,
@@ -93,16 +130,9 @@ def _empty_layer4(stack: str, layer: str) -> dict:
     }
 
 
-def _refresh_layer4(stack: str, project_root: Path, codemap_dir: Path) -> None:
-    """Write .mercator/assets.json + .mercator/strings.json for the active stack.
-
-    Stacks without a Layer 4 module get a `status: not_implemented` payload so
-    callers always find a valid JSON document at the expected path. Any
-    per-stack failure is caught and swallowed into a status payload — Layer 4
-    must never abort a full refresh.
-    """
-    assets_path = codemap_dir / "assets.json"
-    strings_path = codemap_dir / "strings.json"
+def _refresh_layer4(stack: str, project_dir: Path, project_storage: Path) -> None:
+    assets_path = project_storage / "assets.json"
+    strings_path = project_storage / "strings.json"
 
     if stack == "rust":
         mod = rust_assets
@@ -116,84 +146,96 @@ def _refresh_layer4(stack: str, project_root: Path, codemap_dir: Path) -> None:
         return
 
     try:
-        _write_json(assets_path, mod.build_assets(project_root))
-    except Exception as exc:  # noqa: BLE001 — never abort refresh
+        _write_json(assets_path, mod.build_assets(project_dir))
+    except Exception as exc:  # noqa: BLE001
         _write_json(assets_path, {
-            "schema_version": SCHEMA_VERSION,
-            "layer": "assets",
-            "stack": stack,
-            "status": "error",
-            "error": str(exc),
-            "assets": [],
+            "schema_version": SCHEMA_VERSION, "layer": "assets",
+            "stack": stack, "status": "error", "error": str(exc), "assets": [],
         })
     try:
-        _write_json(strings_path, mod.build_strings(project_root))
+        _write_json(strings_path, mod.build_strings(project_dir))
     except Exception as exc:  # noqa: BLE001
         _write_json(strings_path, {
-            "schema_version": SCHEMA_VERSION,
-            "layer": "strings",
-            "stack": stack,
-            "status": "error",
-            "error": str(exc),
-            "strings": [],
+            "schema_version": SCHEMA_VERSION, "layer": "strings",
+            "stack": stack, "status": "error", "error": str(exc), "strings": [],
         })
 
 
-def refresh(project_root: Path, *, affected: Optional[Set[str]] = None) -> dict:
-    """Regenerate all mercator artefacts (or only `affected` systems' Layer 2)."""
-    codemap_dir = paths.ensure_mercator_dir(project_root)
-    stack = detect(project_root)
-    meta.write(project_root, codemap_dir, stack)
+# ---------------------------------------------------------------------------
+# Single-project refresh
+# ---------------------------------------------------------------------------
 
-    if stack == "rust":
-        systems_doc, contract_count = _refresh_rust(project_root, codemap_dir, affected)
-    elif stack == "unity":
-        systems_doc, contract_count = _refresh_unity(project_root, codemap_dir, affected)
-    elif stack == "dart":
-        systems_doc, contract_count = _refresh_dart(project_root, codemap_dir, affected)
-    elif stack == "ts":
-        systems_doc, contract_count = _refresh_ts(project_root, codemap_dir, affected)
-    elif stack == "unknown":
-        raise ValueError(
-            "unsupported stack — no recognised manifest found (expected one of: "
-            "Cargo.toml, Assets/+ProjectSettings/+Packages/manifest.json, pubspec.yaml, "
-            "package.json, pyproject.toml, go.mod)"
-        )
-    else:
-        raise ValueError(
-            f"stack '{stack}' detected but Layer 1 not yet implemented (implemented: rust, unity, dart, ts)"
-        )
+_DISPATCH = {
+    "rust":   _refresh_rust,
+    "unity":  _refresh_unity,
+    "dart":   _refresh_dart,
+    "ts":     _refresh_ts,
+    "python": _refresh_python,
+}
 
-    # Layer 4: assets + user-facing strings. Always regenerated on a full
-    # refresh — asset sets shift independently of code, and the scan is fast.
-    # Incremental (`affected`) refreshes skip Layer 4 to stay cheap.
+
+def refresh_one_project(
+    repo_root: Path,
+    repo_storage: Path,
+    project: dict,
+    *,
+    affected: Optional[Set[str]] = None,
+) -> dict:
+    """Refresh a single project. Returns a per-project result dict."""
+    project_dir = (repo_root / project["root"]).resolve()
+    project_storage = paths.ensure_project_storage_dir(repo_storage, project["id"])
+    stack = project["stack"]
+
+    fn = _DISPATCH.get(stack)
+    if fn is None:
+        # Stack detected but not yet implemented (go, etc.). Write a stub.
+        stub = {
+            "schema_version": SCHEMA_VERSION,
+            "layer": "systems",
+            "stack": stack,
+            "status": "not_implemented",
+            "note": f"stack '{stack}' has no Layer 1 implementation in this version",
+            "systems": [],
+        }
+        _write_json(project_storage / "systems.json", stub)
+        return {
+            "id": project["id"], "stack": stack, "status": "not_implemented",
+            "systems_count": 0, "contracts_written": 0,
+        }
+
+    systems_doc, contract_count = fn(project_dir, project_storage, affected)
+
+    # Layer 4 only on full refresh.
     if affected is None:
-        _refresh_layer4(stack, project_root, codemap_dir)
+        _refresh_layer4(stack, project_dir, project_storage)
 
-    # Visual views regenerate every refresh so `.mercator/graph.md` +
-    # `boundaries.md` stay current alongside the JSON sources of truth.
+    # Boundaries-driven visual outputs (per-project).
     try:
-        bnd_doc = boundaries_mod.load(project_root)
+        bnd_doc = boundaries_mod.load_path(project_storage / "boundaries.json")
     except ValueError:
-        bnd_doc = {}  # Keep refresh atomic — surface the error via `mercator check`.
-    (codemap_dir / "graph.md").write_text(graph_md.render(systems_doc, bnd_doc), encoding="utf-8")
-    (codemap_dir / "boundaries.md").write_text(boundaries_md.render(systems_doc, bnd_doc), encoding="utf-8")
+        bnd_doc = {}
+    (project_storage / "graph.md").write_text(graph_md.render(systems_doc, bnd_doc), encoding="utf-8")
+    (project_storage / "boundaries.md").write_text(boundaries_md.render(systems_doc, bnd_doc), encoding="utf-8")
 
-    # Count Layer 4 results (read back; cheap — already written).
+    # Per-project meta.
+    meta.write_project(repo_root, project_storage, stack)
+
+    # Counts.
     assets_count = 0
     strings_count = 0
     try:
-        with (codemap_dir / "assets.json").open("r", encoding="utf-8") as f:
+        with (project_storage / "assets.json").open("r", encoding="utf-8") as f:
             assets_count = len(json.load(f).get("assets") or [])
     except (OSError, ValueError):
         pass
     try:
-        with (codemap_dir / "strings.json").open("r", encoding="utf-8") as f:
+        with (project_storage / "strings.json").open("r", encoding="utf-8") as f:
             strings_count = len(json.load(f).get("strings") or [])
     except (OSError, ValueError):
         pass
 
     return {
+        "id": project["id"],
         "stack": stack,
         "systems_count": len(systems_doc.get("systems", [])),
         "contracts_written": contract_count,
@@ -203,40 +245,210 @@ def refresh(project_root: Path, *, affected: Optional[Set[str]] = None) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Incremental refresh (hook-driven)
+# Legacy flat-layout migration
 # ---------------------------------------------------------------------------
 
-def files_to_affected_systems(project_root: Path, changed_files: Iterable[str]) -> Set[str]:
-    """Map a list of changed file paths to the set of system names to regen."""
-    systems_doc = _load_systems(paths.mercator_dir(project_root))
-    if not systems_doc:
-        return set()
+_REPO_LEVEL_FILES = {"projects", "projects.json", "meta.json", "atlas.html",
+                     "atlas", "repo.toml", "README.md"}
+
+
+def _migrate_flat_layout_if_present(
+    repo_storage: Path, projects_doc: dict
+) -> Optional[str]:
+    """If the legacy flat layout exists, relocate it.
+
+    Returns the project-id we migrated into, or None if no migration needed.
+
+    Strategy: if `<repo_storage>/systems.json` exists and `<repo_storage>/projects/`
+    does not, the user is on the old flat layout. We pick the first detected
+    project (deterministic — projects.json sorts by category+root) and move
+    *user-authored* files (boundaries.json) into its slot. Regen-able files
+    are simply deleted; the upcoming refresh recreates them.
+    """
+    if not (repo_storage / "systems.json").is_file():
+        return None
+    if (repo_storage / "projects").is_dir():
+        return None  # already migrated
+    candidates = projects_doc.get("projects") or []
+    if not candidates:
+        return None
+    target_id = candidates[0]["id"]
+    target = paths.ensure_project_storage_dir(repo_storage, target_id)
+
+    # Move user-authored boundaries.json (don't regen this — it's authored).
+    src_bnd = repo_storage / "boundaries.json"
+    if src_bnd.is_file():
+        shutil.move(str(src_bnd), str(target / "boundaries.json"))
+
+    # Delete regenerable artefacts at the repo level (refresh will recreate
+    # them under the project slot).
+    for name in ("systems.json", "systems.md", "graph.md", "boundaries.md",
+                 "assets.json", "strings.json"):
+        p = repo_storage / name
+        if p.exists():
+            p.unlink()
+    for d in ("contracts", "symbols", "assets"):
+        p = repo_storage / d
+        if p.is_dir():
+            shutil.rmtree(p)
+    return target_id
+
+
+# ---------------------------------------------------------------------------
+# Repo-level refresh — top-level entry point
+# ---------------------------------------------------------------------------
+
+def refresh(
+    repo_root: Path,
+    *,
+    project_id: Optional[str] = None,
+    affected: Optional[Set[str]] = None,
+) -> dict:
+    """Refresh every project in the repo (or just one, with `project_id`)."""
+    repo_storage = paths.ensure_mercator_dir(repo_root)
+
+    # 1. Detect projects (always — fast, source of truth for the repo layout).
+    projects_doc = projects_mod.write_projects(repo_root, repo_storage)
+
+    # 2. Migrate flat layout if present (one-shot, idempotent).
+    migrated_into = _migrate_flat_layout_if_present(repo_storage, projects_doc)
+
+    # 3. Refresh each project.
+    project_results: List[dict] = []
+    targets: Iterable[dict] = projects_doc.get("projects") or []
+    if project_id:
+        targets = [p for p in targets if p["id"] == project_id]
+        if not targets:
+            raise ValueError(
+                f"unknown --project '{project_id}'. "
+                f"Known: {[p['id'] for p in projects_doc.get('projects') or []]}"
+            )
+    for proj in targets:
+        try:
+            project_results.append(
+                refresh_one_project(repo_root, repo_storage, proj, affected=affected)
+            )
+        except RuntimeError as exc:
+            project_results.append({
+                "id": proj["id"], "stack": proj["stack"],
+                "status": "error", "error": str(exc),
+            })
+
+    # 4. Cross-project edges (only meaningful when >1 project, but compute
+    # always so the file exists with edge_count=0 for single-project repos).
+    try:
+        repo_edges_mod.write_edges(repo_root)
+    except Exception:  # noqa: BLE001
+        pass
+
+    # 5. Repo-level meta.json.
+    repo_stack = (
+        projects_doc["projects"][0]["stack"]
+        if projects_doc["project_count"] == 1
+        else "multi-project"
+    )
+    meta.write(repo_root, repo_storage, repo_stack)
+
+    # 6. Atlas.
+    try:
+        write_atlas(repo_root)
+    except Exception:  # noqa: BLE001
+        pass
+
+    return {
+        "stack": repo_stack,
+        "project_count": projects_doc["project_count"],
+        "project_results": project_results,
+        "migrated_legacy_flat_into": migrated_into,
+        # Aggregate counts across projects (atlas summary).
+        "systems_count": sum(r.get("systems_count", 0) for r in project_results),
+        "contracts_written": sum(r.get("contracts_written", 0) for r in project_results),
+    }
+
+
+# ---------------------------------------------------------------------------
+# Incremental refresh — map changed files to (project, affected systems)
+# ---------------------------------------------------------------------------
+
+def files_to_affected_systems(repo_root: Path, changed_files: Iterable[str]) -> dict:
+    """Map changed files to {project_id: set(system_names_to_regen)}.
+
+    A repo with multiple projects sees changes scoped to whichever project
+    owns the file. Returns an empty dict if no project is affected.
+    """
+    repo_storage = paths.mercator_dir(repo_root)
+    projects_doc = projects_mod.load_projects(repo_storage)
+    if projects_doc is None:
+        return {}
+
+    out: dict = {}
+    changed_paths = [Path(c).as_posix() for c in changed_files]
+    projects = projects_doc.get("projects") or []
+
+    for proj in projects:
+        proj_root = proj["root"]
+        # Files belonging to this project (path-prefix match).
+        if proj_root in (".", ""):
+            project_files = changed_paths
+        else:
+            prefix = proj_root.rstrip("/") + "/"
+            project_files = [c for c in changed_paths if c == proj_root or c.startswith(prefix)]
+        if not project_files:
+            continue
+
+        # Re-strip the project_root prefix from each file so we can pass
+        # project-relative paths to the per-stack mapper.
+        rel_files: List[str] = []
+        for f in project_files:
+            if proj_root in (".", ""):
+                rel_files.append(f)
+            else:
+                rel_files.append(f[len(proj_root) + 1:] if f.startswith(proj_root + "/") else "")
+        rel_files = [f for f in rel_files if f]
+
+        # Load the project's systems.json so we can attribute files to systems.
+        project_storage = paths.project_storage_dir(repo_storage, proj["id"])
+        sys_path = project_storage / "systems.json"
+        if not sys_path.is_file():
+            # Refresh would generate it; for incremental, treat as full-project.
+            out[proj["id"]] = None
+            continue
+        try:
+            systems_doc = json.loads(sys_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            out[proj["id"]] = None
+            continue
+
+        affected = _affected_for_stack(systems_doc, rel_files)
+        out[proj["id"]] = affected
+    return out
+
+
+def _affected_for_stack(systems_doc: dict, changed_rel: List[str]) -> Set[str]:
     stack = systems_doc.get("stack", "")
     affected: Set[str] = set()
-    changed_paths = [Path(c).as_posix() for c in changed_files]
 
     if stack == "rust":
-        # A crate's src tree is everything under <crate_root>/src.
         for s in systems_doc["systems"]:
             manifest_rel = s.get("manifest_path", "")
             if not manifest_rel:
                 continue
             crate_scope = manifest_rel.rsplit("/", 1)[0] if "/" in manifest_rel else ""
-            for p in changed_paths:
+            for p in changed_rel:
                 if p == manifest_rel or (crate_scope and p.startswith(crate_scope + "/")):
                     affected.add(s["name"])
                     break
     elif stack == "unity":
         for s in systems_doc["systems"]:
             scope = s.get("scope_dir", "")
-            for p in changed_paths:
+            for p in changed_rel:
                 if p == s.get("manifest_path") or (scope and (p == scope or p.startswith(scope + "/"))):
                     affected.add(s["name"])
                     break
     elif stack == "dart":
         for s in systems_doc["systems"]:
             scope = s.get("scope_dir", "")
-            for p in changed_paths:
+            for p in changed_rel:
                 if scope in (".", "") or p == s.get("manifest_path") or p.startswith(scope + "/"):
                     affected.add(s["name"])
                     break
@@ -244,8 +456,22 @@ def files_to_affected_systems(project_root: Path, changed_files: Iterable[str]) 
         for s in systems_doc["systems"]:
             scope = s.get("scope_dir", "")
             manifest = s.get("manifest_path", "")
-            for p in changed_paths:
+            for p in changed_rel:
                 if scope in (".", "") or p == manifest or p.startswith(scope + "/"):
+                    affected.add(s["name"])
+                    break
+    elif stack == "python":
+        sys_by_depth = sorted(
+            systems_doc["systems"],
+            key=lambda s: (s.get("scope_dir") or "").count("/"),
+            reverse=True,
+        )
+        for p in changed_rel:
+            for s in sys_by_depth:
+                scope = s.get("scope_dir", "")
+                if not scope:
+                    continue
+                if p == s.get("manifest_path") or p == scope or p.startswith(scope + "/"):
                     affected.add(s["name"])
                     break
     return affected

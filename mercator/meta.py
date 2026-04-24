@@ -48,9 +48,24 @@ def write(project_root: Path, mercator_dir: Path, stack: str) -> None:
         "generated_at": _iso_now(),
         "git_head": _git_head(project_root),
         "tools": _tool_versions(stack),
-        "layers": layer_support(stack),
+        "layers": layer_support(stack) if stack != "multi-project" else {},
     }
     (mercator_dir / "meta.json").write_text(
+        json.dumps(payload, indent=2) + "\n", encoding="utf-8"
+    )
+
+
+def write_project(repo_root: Path, project_storage: Path, stack: str) -> None:
+    """Write per-project meta.json under .mercator/projects/<id>/."""
+    payload = {
+        "schema_version": SCHEMA_VERSION,
+        "stack": stack,
+        "generated_at": _iso_now(),
+        "git_head": _git_head(repo_root),
+        "tools": _tool_versions(stack),
+        "layers": layer_support(stack),
+    }
+    (project_storage / "meta.json").write_text(
         json.dumps(payload, indent=2) + "\n", encoding="utf-8"
     )
 

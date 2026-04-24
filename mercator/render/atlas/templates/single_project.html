@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mercator Atlas — {{TITLE}}</title>
+<style>{{CSS}}</style>
+</head>
+<body>
+<header class="topbar">
+  <h1 id="atlas-h1">Mercator Atlas <span class="sub">v{{VERSION}} · {{STACK}}</span></h1>
+  <nav class="tabs" id="tabs">
+    <a href="#/overview">Overview</a>
+    <a href="#/systems">Systems</a>
+    <a href="#/symbols">Symbols</a>
+    <a href="#/boundaries">Boundaries</a>
+    <a href="#/assets">Assets</a>
+    <a href="#/strings">Strings</a>
+    <a href="#/query">Query Console</a>
+  </nav>
+  <div class="search">
+    <input id="global-search" type="search" placeholder="Search systems, symbols, files… (press /)" />
+  </div>
+</header>
+<main id="app"></main>
+<footer>
+  Derived from <code>.mercator/projects/&lt;id&gt;/*.json</code> by <code>mercator atlas</code>.
+  Regenerate with <code>mercator refresh</code> or <code>mercator atlas</code>.
+  Agents should prefer <code>mercator query ...</code> over scraping this page.
+</footer>
+
+<script id="atlas-data" type="application/json">{{DATA}}</script>
+<script>{{JS}}</script>
+</body>
+</html>

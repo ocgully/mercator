@@ -1,8 +1,13 @@
-"""Query surface for agents. Every function returns a small, typed JSON slice.
+"""Query surface for agents — project-aware.
 
-Agents should prefer these over reading `.mercator/**/*.md`: the JSON is
-smaller, typed, and scoped to the question. The .md views exist for humans
-browsing the repo, not for agent consumption.
+Every function returns a small, typed JSON slice. With nested storage
+(`.mercator/projects/<id>/...`), a query needs to know which project to
+read. The default rule is gentle: if there's exactly one project in the
+repo, use it; if there are multiple, the caller must pass `project_id`
+or get an error listing the choices.
+
+Agents should prefer these JSON queries over reading `.mercator/**/*.md`:
+the JSON is smaller, typed, and scoped to the question.
 """
 from __future__ import annotations
 
@@ -11,38 +16,98 @@ from pathlib import Path
 from typing import Iterable, List, Optional, Set, Union
 
 from mercator import SCHEMA_VERSION, paths, boundaries as boundaries_mod
+from mercator import projects as projects_mod
 from mercator.stacks import rust as rust_stack
 
 
-def _load_systems(project_root: Path) -> dict:
-    p = paths.mercator_dir(project_root) / "systems.json"
+# ---------------------------------------------------------------------------
+# Project resolution
+# ---------------------------------------------------------------------------
+
+def resolve_project(repo_root: Path, project_id: Optional[str] = None) -> dict:
+    """Pick the project this query targets. Raises ValueError if ambiguous."""
+    repo_storage = paths.mercator_dir(repo_root)
+    projects_doc = projects_mod.load_projects(repo_storage)
+    if projects_doc is None:
+        # No projects.json yet — try detecting on the fly so unrefreshed
+        # repos still work for queries that touch only systems.json.
+        projects_doc = projects_mod.detect_projects(repo_root)
+    candidates = projects_doc.get("projects") or []
+    if not candidates:
+        raise ValueError("no projects detected — run `mercator init` to bootstrap")
+    if project_id:
+        for p in candidates:
+            if p["id"] == project_id:
+                return p
+        raise ValueError(
+            f"unknown project '{project_id}'. Known: {[p['id'] for p in candidates]}"
+        )
+    if len(candidates) == 1:
+        return candidates[0]
+    raise ValueError(
+        f"this repo has {len(candidates)} projects; pass --project <id>. "
+        f"Choices: {[p['id'] for p in candidates]}"
+    )
+
+
+def _project_storage(repo_root: Path, project_id: Optional[str]) -> tuple[Path, dict]:
+    proj = resolve_project(repo_root, project_id)
+    repo_storage = paths.mercator_dir(repo_root)
+    return paths.project_storage_dir(repo_storage, proj["id"]), proj
+
+
+def _load_systems(repo_root: Path, project_id: Optional[str] = None) -> dict:
+    storage, _proj = _project_storage(repo_root, project_id)
+    p = storage / "systems.json"
     if not p.is_file():
-        raise FileNotFoundError("mercator systems.json not found — run `mercator init` first")
+        raise FileNotFoundError(
+            f"systems.json not found for project '{_proj['id']}' — run `mercator refresh`"
+        )
     return json.loads(p.read_text(encoding="utf-8"))
 
 
-def _load_contract(project_root: Path, system_name: str) -> Optional[dict]:
-    p = paths.mercator_dir(project_root) / "contracts" / f"{system_name}.json"
+def _load_contract(repo_root: Path, system_name: str,
+                   project_id: Optional[str] = None) -> Optional[dict]:
+    storage, _proj = _project_storage(repo_root, project_id)
+    p = storage / "contracts" / f"{system_name}.json"
     if not p.is_file():
         return None
     return json.loads(p.read_text(encoding="utf-8"))
 
 
 # ---------------------------------------------------------------------------
-# Query: systems
+# Repo-level queries
 # ---------------------------------------------------------------------------
 
-def systems(project_root: Path) -> dict:
-    """Full Layer 1 slice. Small — typically 10–200 KB."""
-    return _load_systems(project_root)
+def projects(repo_root: Path) -> dict:
+    """Return the repo-level projects manifest."""
+    repo_storage = paths.mercator_dir(repo_root)
+    doc = projects_mod.load_projects(repo_storage)
+    if doc is None:
+        doc = projects_mod.detect_projects(repo_root)
+    return doc
+
+
+def repo_edges(repo_root: Path) -> dict:
+    """Return implicit cross-project edges (computed on-demand if missing)."""
+    from mercator import repo_edges as repo_edges_mod
+    repo_storage = paths.mercator_dir(repo_root)
+    doc = repo_edges_mod.load_edges(repo_storage)
+    if doc is None:
+        doc = repo_edges_mod.compute_edges(repo_root)
+    return doc
 
 
 # ---------------------------------------------------------------------------
-# Query: deps
+# Per-project queries
 # ---------------------------------------------------------------------------
 
-def deps(project_root: Path, target: str) -> dict:
-    doc = _load_systems(project_root)
+def systems(repo_root: Path, project_id: Optional[str] = None) -> dict:
+    return _load_systems(repo_root, project_id)
+
+
+def deps(repo_root: Path, target: str, project_id: Optional[str] = None) -> dict:
+    doc = _load_systems(repo_root, project_id)
     names = {s["name"] for s in doc["systems"]}
     if target not in names:
         return {"query": "deps", "target": target, "found": False, "known": sorted(names)}
@@ -55,51 +120,37 @@ def deps(project_root: Path, target: str) -> dict:
         if target in {d["name"] for d in s.get("dependencies", [])}
     )
     return {
-        "query": "deps",
-        "target": target,
-        "found": True,
+        "query": "deps", "target": target, "found": True,
         "stack": doc.get("stack"),
-        "depends_on": depends_on,
-        "depended_by": depended_by,
+        "depends_on": depends_on, "depended_by": depended_by,
     }
 
 
-# ---------------------------------------------------------------------------
-# Query: contract
-# ---------------------------------------------------------------------------
-
-def contract(project_root: Path, system_name: str) -> dict:
-    doc = _load_contract(project_root, system_name)
+def contract(repo_root: Path, system_name: str,
+             project_id: Optional[str] = None) -> dict:
+    doc = _load_contract(repo_root, system_name, project_id)
     if doc is None:
         return {
-            "query": "contract",
-            "system": system_name,
-            "found": False,
+            "query": "contract", "system": system_name, "found": False,
             "note": "No contract file. Either the system doesn't exist, or Layer 2 isn't implemented for this stack.",
         }
     return doc
 
 
-# ---------------------------------------------------------------------------
-# Query: symbol
-# ---------------------------------------------------------------------------
-
-def symbol(
-    project_root: Path,
-    name: str,
-    kinds: Union[str, Set[str]] = "any",
-) -> dict:
-    sys_doc = _load_systems(project_root)
+def symbol(repo_root: Path, name: str,
+           kinds: Union[str, Set[str]] = "any",
+           project_id: Optional[str] = None) -> dict:
+    sys_doc = _load_systems(repo_root, project_id)
     stack = sys_doc.get("stack", "")
     if stack != "rust":
         return {
-            "query": "symbol",
-            "name": name,
-            "stack": stack,
+            "query": "symbol", "name": name, "stack": stack,
             "not_implemented": True,
             "note": f"Layer 3 symbol lookup not yet implemented for stack '{stack}'.",
         }
-    matches = rust_stack.find_symbol(project_root, sys_doc, name, kinds)
+    proj = resolve_project(repo_root, project_id)
+    project_dir = (repo_root / proj["root"]).resolve()
+    matches = rust_stack.find_symbol(project_dir, sys_doc, name, kinds)
     query_kind = kinds if isinstance(kinds, str) else ",".join(sorted(kinds))
     return {
         "schema_version": SCHEMA_VERSION,
@@ -115,152 +166,163 @@ def symbol(
     }
 
 
-# ---------------------------------------------------------------------------
-# Query: touches — which system owns this file path?
-# ---------------------------------------------------------------------------
-
-def touches(project_root: Path, file_path: str) -> dict:
+def touches(repo_root: Path, file_path: str,
+            project_id: Optional[str] = None) -> dict:
     """Answer 'which system does this file belong to?' for an arbitrary path.
 
-    Input is a path relative to the project root (or absolute — we normalise).
+    Without `project_id` and with multiple projects in the repo, we search
+    all projects and return the first match (project + system). With a
+    project_id, we constrain to that project's systems.
     """
-    doc = _load_systems(project_root)
-    stack = doc.get("stack", "")
+    repo_storage = paths.mercator_dir(repo_root)
+    projects_doc = projects_mod.load_projects(repo_storage)
+    if projects_doc is None:
+        projects_doc = projects_mod.detect_projects(repo_root)
 
-    # Normalise to relative POSIX path.
     p = Path(file_path)
     if p.is_absolute():
         try:
-            p = p.resolve().relative_to(project_root.resolve())
+            p = p.resolve().relative_to(repo_root.resolve())
         except ValueError:
-            return {"query": "touches", "file": file_path, "found": False, "note": "file is outside project root"}
-    rel = p.as_posix()
+            return {"query": "touches", "file": file_path, "found": False,
+                    "note": "file is outside repo root"}
+    rel_repo = p.as_posix()
 
-    best: Optional[dict] = None
-    best_depth = -1
+    candidates = projects_doc.get("projects") or []
+    if project_id:
+        candidates = [p for p in candidates if p["id"] == project_id]
 
-    if stack == "rust":
-        for s in doc["systems"]:
-            manifest = s.get("manifest_path", "")
-            scope = manifest.rsplit("/", 1)[0] if "/" in manifest else ""
-            if not scope:
-                continue
-            if rel == manifest or rel.startswith(scope + "/"):
-                depth = scope.count("/")
-                if depth > best_depth:
-                    best = {"system": s["name"], "scope_dir": scope}
-                    best_depth = depth
-    elif stack == "unity":
-        for s in doc["systems"]:
-            scope = s.get("scope_dir", "")
-            if not scope:
-                continue
-            if rel == s.get("manifest_path") or (scope and (rel == scope or rel.startswith(scope + "/"))):
-                depth = scope.count("/")
-                if depth > best_depth:
-                    best = {"system": s["name"], "scope_dir": scope}
-                    best_depth = depth
-    elif stack == "dart":
-        for s in doc["systems"]:
-            scope = s.get("scope_dir", "")
-            if scope == ".":
-                if best is None:
-                    best = {"system": s["name"], "scope_dir": scope}
-                    best_depth = 0
-                continue
-            if rel == s.get("manifest_path") or rel.startswith(scope + "/"):
-                depth = scope.count("/")
-                if depth > best_depth:
-                    best = {"system": s["name"], "scope_dir": scope}
-                    best_depth = depth
+    for proj in candidates:
+        proj_root = proj["root"]
+        if proj_root in (".", ""):
+            rel = rel_repo
+        elif rel_repo == proj_root or rel_repo.startswith(proj_root + "/"):
+            rel = rel_repo[len(proj_root) + 1:] if rel_repo.startswith(proj_root + "/") else ""
+        else:
+            continue
+        try:
+            sys_doc = _load_systems(repo_root, proj["id"])
+        except (FileNotFoundError, ValueError):
+            continue
+        stack = sys_doc.get("stack", "")
+        best, best_depth = None, -1
 
-    if best is None:
-        return {"query": "touches", "file": rel, "stack": stack, "found": False,
-                "note": "file is not within any known system's scope"}
-    return {"query": "touches", "file": rel, "stack": stack, "found": True, **best}
+        if stack == "rust":
+            for s in sys_doc["systems"]:
+                manifest = s.get("manifest_path", "")
+                scope = manifest.rsplit("/", 1)[0] if "/" in manifest else ""
+                if not scope:
+                    continue
+                if rel == manifest or rel.startswith(scope + "/"):
+                    depth = scope.count("/")
+                    if depth > best_depth:
+                        best = {"system": s["name"], "scope_dir": scope}
+                        best_depth = depth
+        elif stack == "unity":
+            for s in sys_doc["systems"]:
+                scope = s.get("scope_dir", "")
+                if not scope:
+                    continue
+                if rel == s.get("manifest_path") or rel == scope or rel.startswith(scope + "/"):
+                    depth = scope.count("/")
+                    if depth > best_depth:
+                        best = {"system": s["name"], "scope_dir": scope}
+                        best_depth = depth
+        elif stack == "dart":
+            for s in sys_doc["systems"]:
+                scope = s.get("scope_dir", "")
+                if scope == ".":
+                    if best is None:
+                        best = {"system": s["name"], "scope_dir": scope}
+                        best_depth = 0
+                    continue
+                if rel == s.get("manifest_path") or rel.startswith(scope + "/"):
+                    depth = scope.count("/")
+                    if depth > best_depth:
+                        best = {"system": s["name"], "scope_dir": scope}
+                        best_depth = depth
+        elif stack == "python":
+            for s in sys_doc["systems"]:
+                scope = s.get("scope_dir", "")
+                if not scope:
+                    continue
+                if rel == s.get("manifest_path") or rel == scope or rel.startswith(scope + "/"):
+                    depth = scope.count("/")
+                    if depth > best_depth:
+                        best = {"system": s["name"], "scope_dir": scope}
+                        best_depth = depth
+
+        if best is not None:
+            return {
+                "query": "touches", "file": rel_repo, "stack": stack,
+                "found": True, "project": proj["id"], **best,
+            }
+
+    return {"query": "touches", "file": rel_repo, "found": False,
+            "note": "file is not within any known system's scope"}
 
 
-# ---------------------------------------------------------------------------
-# Query: system — composite Layer 1 + 2 slice for one system
-# ---------------------------------------------------------------------------
-
-def system(project_root: Path, name: str) -> dict:
-    """Everything an agent needs to reason about one system.
-
-    Includes its Layer 1 entry (metadata + deps), its Layer 2 contract if
-    available, and forward/reverse dep edges. Bounded small — typically
-    ≤ 100 KB even for big crates.
-    """
-    sys_doc = _load_systems(project_root)
+def system(repo_root: Path, name: str,
+           project_id: Optional[str] = None) -> dict:
+    sys_doc = _load_systems(repo_root, project_id)
     entry = next((s for s in sys_doc["systems"] if s["name"] == name), None)
     if entry is None:
         return {"query": "system", "name": name, "found": False,
                 "known": sorted({s["name"] for s in sys_doc["systems"]})}
 
-    deps_info = deps(project_root, name)
-    contract_doc = _load_contract(project_root, name)
+    deps_info = deps(repo_root, name, project_id)
+    contract_doc = _load_contract(repo_root, name, project_id)
 
     return {
-        "query": "system",
-        "name": name,
-        "found": True,
+        "query": "system", "name": name, "found": True,
         "stack": sys_doc.get("stack"),
         "entry": entry,
         "depends_on": deps_info["depends_on"],
         "depended_by": deps_info["depended_by"],
-        "contract": contract_doc,  # None if Layer 2 isn't implemented for this stack
+        "contract": contract_doc,
     }
 
 
-# ---------------------------------------------------------------------------
-# Query: boundaries + violations — forbidden-edge (DMZ) rules
-# ---------------------------------------------------------------------------
-
-def boundaries(project_root: Path) -> dict:
-    sys_doc = _load_systems(project_root)
+def boundaries(repo_root: Path, project_id: Optional[str] = None) -> dict:
+    storage, _proj = _project_storage(repo_root, project_id)
+    sys_doc = _load_systems(repo_root, project_id)
     try:
-        bnd_doc = boundaries_mod.load(project_root)
+        bnd_doc = boundaries_mod.load_path(storage / "boundaries.json")
     except ValueError as exc:
         return {"query": "boundaries", "error": str(exc)}
     if not bnd_doc:
         return {
-            "query": "boundaries",
-            "configured": False,
+            "query": "boundaries", "configured": False,
             "note": "No boundaries.json found. Author one to declare forbidden system-to-system edges (DMZs).",
-            "rules": [],
-            "violation_count": 0,
+            "rules": [], "violation_count": 0,
         }
     rules = boundaries_mod.summarise_rules(sys_doc, bnd_doc)
     violations = boundaries_mod.evaluate(sys_doc, bnd_doc)
     return {
         "schema_version": SCHEMA_VERSION,
-        "query": "boundaries",
-        "configured": True,
-        "rule_count": len(rules),
-        "violation_count": len(violations),
+        "query": "boundaries", "configured": True,
+        "rule_count": len(rules), "violation_count": len(violations),
         "blocking": boundaries_mod.has_blocking_violations(violations),
         "rules": rules,
     }
 
 
-def violations(project_root: Path) -> dict:
-    sys_doc = _load_systems(project_root)
+def violations(repo_root: Path, project_id: Optional[str] = None) -> dict:
+    storage, _proj = _project_storage(repo_root, project_id)
+    sys_doc = _load_systems(repo_root, project_id)
     try:
-        bnd_doc = boundaries_mod.load(project_root)
+        bnd_doc = boundaries_mod.load_path(storage / "boundaries.json")
     except ValueError as exc:
         return {"query": "violations", "error": str(exc)}
     if not bnd_doc:
         return {
-            "query": "violations",
-            "configured": False,
-            "violation_count": 0,
-            "violations": [],
+            "query": "violations", "configured": False,
+            "violation_count": 0, "violations": [],
         }
     vs = boundaries_mod.evaluate(sys_doc, bnd_doc)
     return {
         "schema_version": SCHEMA_VERSION,
-        "query": "violations",
-        "configured": True,
+        "query": "violations", "configured": True,
         "violation_count": len(vs),
         "blocking": boundaries_mod.has_blocking_violations(vs),
         "violations": vs,

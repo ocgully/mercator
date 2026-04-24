@@ -60,15 +60,15 @@ from typing import Dict, Iterable, List, Optional, Set, Tuple
 SEVERITIES = ("info", "warning", "error")
 
 
-def load(project_root: Path) -> dict:
-    """Load `.mercator/boundaries.json` (or legacy `.codemap/boundaries.json`); return `{}` if absent."""
-    path = project_root / ".mercator" / "boundaries.json"
+def load_path(path: Path) -> dict:
+    """Load a specific boundaries.json file. Returns `{}` if absent.
+
+    Raises ValueError on malformed content. This is the project-aware
+    primitive — callers pass the per-project path. `load()` keeps the
+    legacy semantics for callers that still talk in terms of project_root.
+    """
     if not path.is_file():
-        legacy = project_root / ".codemap" / "boundaries.json"
-        if legacy.is_file():
-            path = legacy
-        else:
-            return {}
+        return {}
     try:
         doc = json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
@@ -93,6 +93,22 @@ def load(project_root: Path) -> dict:
                 f"boundaries.json: boundaries[{i}] severity must be one of {SEVERITIES}, got {sev!r}"
             )
     return doc
+
+
+def load(project_root: Path) -> dict:
+    """Legacy convenience: load `.mercator/boundaries.json` at the repo root.
+
+    Prefer `load_path(project_storage_dir / "boundaries.json")` for
+    project-aware callers.
+    """
+    path = project_root / ".mercator" / "boundaries.json"
+    if not path.is_file():
+        legacy = project_root / ".codemap" / "boundaries.json"
+        if legacy.is_file():
+            path = legacy
+        else:
+            return {}
+    return load_path(path)
 
 
 # ---------------------------------------------------------------------------
