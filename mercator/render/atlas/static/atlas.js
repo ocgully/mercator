@@ -241,12 +241,44 @@ mercator query systems${PROJECT && PROJECT.id ? ` --project ${PROJECT.id}` : ''}
   function routeSystems() {
     const edges = allEdges();
     const sorted = [...SYSTEMS].sort(byName);
+
+    // Connection-degree (in + out edges) per system — drives the default
+    // top-N selection so big graphs still render usefully on first paint.
+    const degree = new Map();
+    for (const s of SYSTEMS) degree.set(s.name, 0);
+    for (const [a, b] of edges) {
+      degree.set(a, (degree.get(a) || 0) + 1);
+      degree.set(b, (degree.get(b) || 0) + 1);
+    }
+    const byDegreeDesc = (a, b) => (degree.get(b.name) || 0) - (degree.get(a.name) || 0)
+      || a.name.localeCompare(b.name);
+
+    const GRAPH_CAP = 80;
+    const allNames = sorted.map(s => s.name);
+    const topByDegree = [...sorted].sort(byDegreeDesc).slice(0, GRAPH_CAP).map(s => s.name);
+    const selected = new Set(topByDegree);  // mutable selection state
+    let expandNeighbors = false;
+
     app.innerHTML = `
       <section class="panel">
         <h2>Dependency graph</h2>
-        ${sorted.length > 80
-          ? `<div class="empty">Graph suppressed (${sorted.length} > 80 systems). Use search to focus.</div>`
-          : `<div id="sys-graph"></div>`}
+        <div id="graph-controls" style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:10px">
+          <input id="sys-list-filter" class="filter" placeholder="Filter system list…" style="min-width:200px" />
+          <button class="btn" id="sel-clear">Clear all</button>
+          <button class="btn" id="sel-all">Select all</button>
+          <button class="btn" id="sel-top">Top ${GRAPH_CAP} by connections</button>
+          <label style="display:flex;align-items:center;gap:6px;color:var(--muted);font-size:12.5px">
+            <input type="checkbox" id="expand-neighbors" />
+            <span>+ include neighbours of selected</span>
+          </label>
+          <span id="sys-count-badge" class="pill" style="margin-left:auto"></span>
+        </div>
+        <details style="margin-bottom:10px">
+          <summary>System list (click to toggle)</summary>
+          <div id="sys-list" style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px;max-height:240px;overflow:auto;padding:4px"></div>
+        </details>
+        <div id="sys-graph"></div>
+        <div id="graph-hidden-note" style="color:var(--muted);font-size:12px;margin-top:6px"></div>
       </section>
       <section class="panel">
         <h2>Systems (${sorted.length})</h2>
@@ -265,9 +297,90 @@ mercator query deps &lt;system&gt;
 mercator query touches &lt;path&gt;</pre>
       </section>
     `;
-    if (sorted.length <= 80) {
-      renderMermaid(document.getElementById('sys-graph'), mermaidDepGraph(sorted, edges));
+
+    const listEl = document.getElementById('sys-list');
+    const listFilter = document.getElementById('sys-list-filter');
+    const badge = document.getElementById('sys-count-badge');
+    const hiddenNote = document.getElementById('graph-hidden-note');
+    const expandBox = document.getElementById('expand-neighbors');
+
+    function effectiveSelection() {
+      if (!expandNeighbors || selected.size === 0) return new Set(selected);
+      const out = new Set(selected);
+      for (const [a, b] of edges) {
+        if (selected.has(a)) out.add(b);
+        if (selected.has(b)) out.add(a);
+      }
+      return out;
     }
+
+    function renderList(q) {
+      const ql = (q || '').toLowerCase();
+      const items = [...sorted].sort(byDegreeDesc).filter(s =>
+        !ql || s.name.toLowerCase().includes(ql)
+      );
+      listEl.innerHTML = items.map(s => {
+        const checked = selected.has(s.name) ? 'checked' : '';
+        const d = degree.get(s.name) || 0;
+        return `<label class="pill" style="cursor:pointer;display:inline-flex;align-items:center;gap:4px">
+          <input type="checkbox" data-name="${esc(s.name)}" ${checked} style="margin:0">
+          ${esc(s.name)} <span style="opacity:.6;font-size:10px">${d}</span>
+        </label>`;
+      }).join('') || '<div class="empty">No matches.</div>';
+      for (const cb of listEl.querySelectorAll('input[type=checkbox]')) {
+        cb.addEventListener('change', (e) => {
+          const n = e.target.dataset.name;
+          if (e.target.checked) selected.add(n); else selected.delete(n);
+          renderGraph();
+        });
+      }
+    }
+
+    function renderGraph() {
+      const eff = effectiveSelection();
+      const subSystems = sorted.filter(s => eff.has(s.name));
+      const subEdges = edges.filter(([a, b]) => eff.has(a) && eff.has(b));
+      const total = sorted.length;
+      const shown = subSystems.length;
+      const hidden = total - shown;
+      const explicit = selected.size;
+      const auto = expandNeighbors ? Math.max(0, shown - explicit) : 0;
+      badge.textContent = `showing ${shown} of ${total} systems`
+        + (auto ? ` (${explicit} selected + ${auto} neighbour${auto === 1 ? '' : 's'})` : '');
+      if (hidden > 0) {
+        hiddenNote.innerHTML = `<strong>${hidden}</strong> system${hidden === 1 ? '' : 's'} hidden — `
+          + `untick boxes above to remove, tick to add, or use the buttons.`;
+      } else {
+        hiddenNote.textContent = '';
+      }
+      if (shown === 0) {
+        document.getElementById('sys-graph').innerHTML =
+          '<div class="empty">No systems selected. Tick boxes above or click "Top ' + GRAPH_CAP + '".</div>';
+        return;
+      }
+      renderMermaid(document.getElementById('sys-graph'), mermaidDepGraph(subSystems, subEdges));
+    }
+
+    listFilter.addEventListener('input', (e) => renderList(e.target.value));
+    document.getElementById('sel-clear').addEventListener('click', () => {
+      selected.clear(); renderList(listFilter.value); renderGraph();
+    });
+    document.getElementById('sel-all').addEventListener('click', () => {
+      for (const n of allNames) selected.add(n);
+      renderList(listFilter.value); renderGraph();
+    });
+    document.getElementById('sel-top').addEventListener('click', () => {
+      selected.clear();
+      for (const n of topByDegree) selected.add(n);
+      renderList(listFilter.value); renderGraph();
+    });
+    expandBox.addEventListener('change', (e) => {
+      expandNeighbors = e.target.checked;
+      renderGraph();
+    });
+
+    renderList('');
+    renderGraph();
     const dependedBy = new Map();
     for (const s of SYSTEMS) for (const d of (s.dependencies || [])) {
       if (!dependedBy.has(d.name)) dependedBy.set(d.name, []);
