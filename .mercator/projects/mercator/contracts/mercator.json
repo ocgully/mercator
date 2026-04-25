@@ -5,10 +5,10 @@
   "stack": "python",
   "source_tool": "python_ast_contract",
   "source_tool_note": "Public surface = top-level `def` / `async def` / `class` whose names don't start with '_'. Module-level constants (UPPER_CASE assignments) are included as 'const' items. Only files directly inside the package are scanned; sub-packages are their own systems.",
-  "files_scanned": 14,
+  "files_scanned": 15,
   "counts": {
-    "const": 21,
-    "fn": 55
+    "const": 25,
+    "fn": 61
   },
   "items": [
     {
@@ -92,77 +92,77 @@
       "kind": "fn",
       "name": "cmd_diff",
       "file": "mercator/cli.py",
-      "line": 225,
+      "line": 229,
       "signature": "def cmd_diff(args) -> int"
     },
     {
       "kind": "fn",
       "name": "cmd_hooks",
       "file": "mercator/cli.py",
-      "line": 247,
+      "line": 251,
       "signature": "def cmd_hooks(args) -> int"
     },
     {
       "kind": "fn",
       "name": "cmd_migrate",
       "file": "mercator/cli.py",
-      "line": 276,
+      "line": 280,
       "signature": "def cmd_migrate(args) -> int"
     },
     {
       "kind": "fn",
       "name": "cmd_check",
       "file": "mercator/cli.py",
-      "line": 304,
+      "line": 308,
       "signature": "def cmd_check(args) -> int"
     },
     {
       "kind": "fn",
       "name": "cmd_render",
       "file": "mercator/cli.py",
-      "line": 374,
+      "line": 395,
       "signature": "def cmd_render(args) -> int"
     },
     {
       "kind": "fn",
       "name": "cmd_boundaries",
       "file": "mercator/cli.py",
-      "line": 419,
+      "line": 440,
       "signature": "def cmd_boundaries(args) -> int"
     },
     {
       "kind": "fn",
       "name": "cmd_projects",
       "file": "mercator/cli.py",
-      "line": 472,
+      "line": 542,
       "signature": "def cmd_projects(args) -> int"
     },
     {
       "kind": "fn",
       "name": "cmd_atlas",
       "file": "mercator/cli.py",
-      "line": 501,
+      "line": 571,
       "signature": "def cmd_atlas(args) -> int"
     },
     {
       "kind": "fn",
       "name": "cmd_info",
       "file": "mercator/cli.py",
-      "line": 521,
+      "line": 591,
       "signature": "def cmd_info(args) -> int"
     },
     {
       "kind": "fn",
       "name": "main",
       "file": "mercator/cli.py",
-      "line": 640,
+      "line": 713,
       "signature": "def main(argv = None) -> int"
     },
     {
       "kind": "fn",
       "name": "deprecated_main",
       "file": "mercator/cli.py",
-      "line": 651,
+      "line": 724,
       "signature": "def deprecated_main(argv = None) -> int"
     },
     {
@@ -181,44 +181,58 @@
     },
     {
       "kind": "const",
-      "name": "SYSTEMS_PATH",
+      "name": "PROJECTS_PATH",
       "file": "mercator/diff.py",
-      "line": 29,
-      "signature": "SYSTEMS_PATH = '.mercator/systems.json'"
+      "line": 36,
+      "signature": "PROJECTS_PATH = '.mercator/projects.json'"
     },
     {
       "kind": "const",
-      "name": "CONTRACT_DIR",
+      "name": "PROJECT_SYSTEMS_TPL",
       "file": "mercator/diff.py",
-      "line": 30,
-      "signature": "CONTRACT_DIR = '.mercator/contracts'"
+      "line": 37,
+      "signature": "PROJECT_SYSTEMS_TPL = '.mercator/projects/{id}/systems.json'"
     },
     {
       "kind": "const",
-      "name": "LEGACY_SYSTEMS_PATH",
+      "name": "PROJECT_CONTRACT_TPL",
       "file": "mercator/diff.py",
-      "line": 31,
-      "signature": "LEGACY_SYSTEMS_PATH = '.codemap/systems.json'"
+      "line": 38,
+      "signature": "PROJECT_CONTRACT_TPL = '.mercator/projects/{id}/contracts/{system}.json'"
     },
     {
       "kind": "const",
-      "name": "LEGACY_CONTRACT_DIR",
+      "name": "LEGACY_SYSTEMS_PATHS",
       "file": "mercator/diff.py",
-      "line": 32,
-      "signature": "LEGACY_CONTRACT_DIR = '.codemap/contracts'"
+      "line": 41,
+      "signature": "LEGACY_SYSTEMS_PATHS = ('.mercator/systems.json', '.codemap/systems.json')"
+    },
+    {
+      "kind": "const",
+      "name": "LEGACY_CONTRACT_DIRS",
+      "file": "mercator/diff.py",
+      "line": 42,
+      "signature": "LEGACY_CONTRACT_DIRS = ('.mercator/contracts', '.codemap/contracts')"
+    },
+    {
+      "kind": "const",
+      "name": "LEGACY_PROJECT_ID",
+      "file": "mercator/diff.py",
+      "line": 45,
+      "signature": "LEGACY_PROJECT_ID = '(legacy)'"
     },
     {
       "kind": "fn",
       "name": "compute_diff",
       "file": "mercator/diff.py",
-      "line": 157,
+      "line": 255,
       "signature": "def compute_diff(project_root: Path, ref_a: str, ref_b: str) -> dict"
     },
     {
       "kind": "fn",
       "name": "render_diff_md",
       "file": "mercator/diff.py",
-      "line": 211,
+      "line": 331,
       "signature": "def render_diff_md(diff: dict) -> str"
     },
     {
@@ -447,80 +461,136 @@
     },
     {
       "kind": "fn",
+      "name": "repo_boundaries",
+      "file": "mercator/query.py",
+      "line": 101,
+      "signature": "def repo_boundaries(repo_root: Path) -> dict"
+    },
+    {
+      "kind": "fn",
+      "name": "repo_violations",
+      "file": "mercator/query.py",
+      "line": 131,
+      "signature": "def repo_violations(repo_root: Path) -> dict"
+    },
+    {
+      "kind": "fn",
       "name": "systems",
       "file": "mercator/query.py",
-      "line": 105,
+      "line": 161,
       "signature": "def systems(repo_root: Path, project_id: Optional[str] = None) -> dict"
     },
     {
       "kind": "fn",
       "name": "deps",
       "file": "mercator/query.py",
-      "line": 109,
+      "line": 165,
       "signature": "def deps(repo_root: Path, target: str, project_id: Optional[str] = None) -> dict"
     },
     {
       "kind": "fn",
       "name": "contract",
       "file": "mercator/query.py",
-      "line": 129,
+      "line": 185,
       "signature": "def contract(repo_root: Path, system_name: str, project_id: Optional[str] = None) -> dict"
     },
     {
       "kind": "fn",
       "name": "symbol",
       "file": "mercator/query.py",
-      "line": 140,
+      "line": 196,
       "signature": "def symbol(repo_root: Path, name: str, kinds: Union[str, Set[str]] = 'any', project_id: Optional[str] = None) -> dict"
     },
     {
       "kind": "fn",
       "name": "touches",
       "file": "mercator/query.py",
-      "line": 169,
+      "line": 225,
       "signature": "def touches(repo_root: Path, file_path: str, project_id: Optional[str] = None) -> dict"
     },
     {
       "kind": "fn",
       "name": "system",
       "file": "mercator/query.py",
-      "line": 265,
+      "line": 321,
       "signature": "def system(repo_root: Path, name: str, project_id: Optional[str] = None) -> dict"
     },
     {
       "kind": "fn",
       "name": "boundaries",
       "file": "mercator/query.py",
-      "line": 286,
+      "line": 342,
       "signature": "def boundaries(repo_root: Path, project_id: Optional[str] = None) -> dict"
     },
     {
       "kind": "fn",
       "name": "violations",
       "file": "mercator/query.py",
-      "line": 310,
+      "line": 366,
       "signature": "def violations(repo_root: Path, project_id: Optional[str] = None) -> dict"
     },
     {
       "kind": "fn",
       "name": "refresh_one_project",
       "file": "mercator/refresh.py",
-      "line": 177,
+      "line": 200,
       "signature": "def refresh_one_project(repo_root: Path, repo_storage: Path, project: dict, *, affected: Optional[Set[str]] = None) -> dict"
     },
     {
       "kind": "fn",
       "name": "refresh",
       "file": "mercator/refresh.py",
-      "line": 301,
+      "line": 324,
       "signature": "def refresh(repo_root: Path, *, project_id: Optional[str] = None, affected: Optional[Set[str]] = None) -> dict"
     },
     {
       "kind": "fn",
       "name": "files_to_affected_systems",
       "file": "mercator/refresh.py",
-      "line": 373,
+      "line": 396,
       "signature": "def files_to_affected_systems(repo_root: Path, changed_files: Iterable[str]) -> dict"
+    },
+    {
+      "kind": "const",
+      "name": "SEVERITIES",
+      "file": "mercator/repo_boundaries.py",
+      "line": 57,
+      "signature": "SEVERITIES = ('info', 'warning', 'error')"
+    },
+    {
+      "kind": "fn",
+      "name": "load",
+      "file": "mercator/repo_boundaries.py",
+      "line": 64,
+      "signature": "def load(repo_storage: Path) -> dict"
+    },
+    {
+      "kind": "fn",
+      "name": "evaluate",
+      "file": "mercator/repo_boundaries.py",
+      "line": 177,
+      "signature": "def evaluate(projects_doc: dict, repo_edges_doc: dict, repo_boundaries_doc: dict) -> List[dict]"
+    },
+    {
+      "kind": "fn",
+      "name": "summarise_rules",
+      "file": "mercator/repo_boundaries.py",
+      "line": 234,
+      "signature": "def summarise_rules(projects_doc: dict, repo_edges_doc: dict, repo_boundaries_doc: dict) -> List[dict]"
+    },
+    {
+      "kind": "fn",
+      "name": "has_blocking_violations",
+      "file": "mercator/repo_boundaries.py",
+      "line": 268,
+      "signature": "def has_blocking_violations(violations: List[dict]) -> bool"
+    },
+    {
+      "kind": "const",
+      "name": "SCAFFOLD_JSON",
+      "file": "mercator/repo_boundaries.py",
+      "line": 276,
+      "signature": "SCAFFOLD_JSON = '{\\n  \"schema_version\": \"1\",\\n\\n  \"_doc\": \"Cross-project DMZ rules. Constrains e"
     },
     {
       "kind": "fn",
@@ -544,5 +614,5 @@
       "signature": "def load_edges(repo_storage: Path) -> Optional[dict]"
     }
   ],
-  "item_count": 76
+  "item_count": 86
 }

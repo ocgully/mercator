@@ -7,7 +7,7 @@
   "source_tool_note": "Public surface = top-level `def` / `async def` / `class` whose names don't start with '_'. Module-level constants (UPPER_CASE assignments) are included as 'const' items. Only files directly inside the package are scanned; sub-packages are their own systems.",
   "files_scanned": 10,
   "counts": {
-    "fn": 17,
+    "fn": 18,
     "const": 13
   },
   "items": [
@@ -169,15 +169,22 @@
       "kind": "const",
       "name": "SKIP_DIRS",
       "file": "mercator/stacks/ts.py",
-      "line": 42,
+      "line": 43,
       "signature": "SKIP_DIRS = {'node_modules', '.git', '.yarn', '.pnpm-store', 'dist', 'build', 'out', 'covera"
     },
     {
       "kind": "fn",
       "name": "build_systems",
       "file": "mercator/stacks/ts.py",
-      "line": 308,
+      "line": 309,
       "signature": "def build_systems(project_root: Path) -> dict"
+    },
+    {
+      "kind": "fn",
+      "name": "build_contract",
+      "file": "mercator/stacks/ts.py",
+      "line": 903,
+      "signature": "def build_contract(project_root: Path, system_name: str, manifest_rel: str) -> dict"
     },
     {
       "kind": "fn",
@@ -222,5 +229,5 @@
       "signature": "def build_strings(project_root: Path) -> dict"
     }
   ],
-  "item_count": 30
+  "item_count": 31
 }

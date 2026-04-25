@@ -22,13 +22,13 @@
       "name": "render_repo_index",
       "file": "mercator/render/atlas/__init__.py",
       "line": 119,
-      "signature": "def render_repo_index(*, bundles: List[dict], mercator_version: str, schema_version: str, repo_meta: Optional[dict] = None, projects_doc: Optional[dict] = None, repo_edges: Optional[dict] = None) -> str"
+      "signature": "def render_repo_index(*, bundles: List[dict], mercator_version: str, schema_version: str, repo_meta: Optional[dict] = None, projects_doc: Optional[dict] = None, repo_edges: Optional[dict] = None, repo_boundaries: Optional[dict] = None) -> str"
     },
     {
       "kind": "fn",
       "name": "render",
       "file": "mercator/render/atlas/__init__.py",
-      "line": 175,
+      "line": 177,
       "signature": "def render(*, systems_doc = None, contracts = None, boundaries_doc = None, violations = None, assets_doc = None, strings_doc = None, meta_doc = None, mercator_version: str, schema_version: str) -> str"
     }
   ],

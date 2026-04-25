@@ -104,6 +104,25 @@
         "tomllib",
         "typing"
       ]
+    },
+    {
+      "name": "tests",
+      "version": null,
+      "manifest_path": "tests/__init__.py",
+      "scope_dir": "tests",
+      "kind": "package",
+      "dependencies": [
+        {
+          "name": "mercator"
+        }
+      ],
+      "external_imports": [
+        "__future__",
+        "json",
+        "pathlib",
+        "pytest",
+        "typing"
+      ]
     }
   ]
 }

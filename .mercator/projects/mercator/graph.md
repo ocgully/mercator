@@ -1,8 +1,8 @@
 # Mercator — Visual View
 
 **Stack**: python
-**Systems**: 4
-**Dep edges**: 5
+**Systems**: 5
+**Dep edges**: 6
 **DMZ rules**: 0
 **Violations**: 0
 
@@ -16,11 +16,13 @@ graph LR
   mercator_render[mercator.render]
   mercator_render_atlas[mercator.render.atlas]
   mercator_stacks[mercator.stacks]
+  tests[tests]
   mercator --> mercator_render
   mercator --> mercator_stacks
   mercator_render --> mercator
   mercator_render --> mercator_render_atlas
   mercator_stacks --> mercator
+  tests --> mercator
 ```
 
 ## 2. DMZ rules

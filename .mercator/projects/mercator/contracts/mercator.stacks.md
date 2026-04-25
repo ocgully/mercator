@@ -2,13 +2,13 @@
 
 **Source tool**: `python_ast_contract`
 **Files scanned**: 10
-**Public items**: 30
+**Public items**: 31
 
 _Last-refresh timestamp is in `.mercator/meta.json`; this file is time-stable._
 
 ## Counts by kind
 
-- **Functions** — 17
+- **Functions** — 18
 - **Constants** — 13
 
 ## Functions
@@ -28,7 +28,8 @@ _Last-refresh timestamp is in `.mercator/meta.json`; this file is time-stable._
 | `find_symbol` | `def find_symbol(project_root: Path, systems_doc: dict, name: str, want_kinds) -> List[dict]` | `mercator/stacks/rust.py`:365 |
 | `build_assets` | `def build_assets(project_root: Path) -> dict` | `mercator/stacks/rust_assets.py`:93 |
 | `build_strings` | `def build_strings(project_root: Path) -> dict` | `mercator/stacks/rust_assets.py`:156 |
-| `build_systems` | `def build_systems(project_root: Path) -> dict` | `mercator/stacks/ts.py`:308 |
+| `build_systems` | `def build_systems(project_root: Path) -> dict` | `mercator/stacks/ts.py`:309 |
+| `build_contract` | `def build_contract(project_root: Path, system_name: str, manifest_rel: str) -> dict` | `mercator/stacks/ts.py`:903 |
 | `build_systems` | `def build_systems(project_root: Path) -> dict` | `mercator/stacks/unity.py`:70 |
 | `build_assets` | `def build_assets(project_root: Path) -> dict` | `mercator/stacks/unity_assets.py`:51 |
 | `build_strings` | `def build_strings(project_root: Path) -> dict` | `mercator/stacks/unity_assets.py`:175 |
@@ -46,7 +47,7 @@ _Last-refresh timestamp is in `.mercator/meta.json`; this file is time-stable._
 | `ASSET_DIRS` | `ASSET_DIRS = ('assets', 'res', 'resources', 'static')` | `mercator/stacks/rust_assets.py`:26 |
 | `SKIP_DIRS` | `SKIP_DIRS = {'target', '.git', 'node_modules', '.cargo', '.codemap', '.mercator'}` | `mercator/stacks/rust_assets.py`:27 |
 | `UI_SETTER_RE` | `UI_SETTER_RE = re.compile('\\.(text\|title\|label\|placeholder\|tooltip\|button\|heading\|caption\|hint` | `mercator/stacks/rust_assets.py`:31 |
-| `SKIP_DIRS` | `SKIP_DIRS = {'node_modules', '.git', '.yarn', '.pnpm-store', 'dist', 'build', 'out', 'covera` | `mercator/stacks/ts.py`:42 |
+| `SKIP_DIRS` | `SKIP_DIRS = {'node_modules', '.git', '.yarn', '.pnpm-store', 'dist', 'build', 'out', 'covera` | `mercator/stacks/ts.py`:43 |
 | `META_SUFFIX` | `META_SUFFIX = '.meta'` | `mercator/stacks/unity_assets.py`:32 |
 | `PO_MSGID_RE` | `PO_MSGID_RE = re.compile('^\\s*msgid\\s+"(.*)"\\s*$')` | `mercator/stacks/unity_assets.py`:104 |
 | `PO_MSGSTR_RE` | `PO_MSGSTR_RE = re.compile('^\\s*msgstr\\s+"(.*)"\\s*$')` | `mercator/stacks/unity_assets.py`:105 |

@@ -1,0 +1,148 @@
+{
+  "schema_version": "1",
+  "layer": "contract",
+  "system": "tests",
+  "stack": "python",
+  "source_tool": "python_ast_contract",
+  "source_tool_note": "Public surface = top-level `def` / `async def` / `class` whose names don't start with '_'. Module-level constants (UPPER_CASE assignments) are included as 'const' items. Only files directly inside the package are scanned; sub-packages are their own systems.",
+  "files_scanned": 3,
+  "counts": {
+    "fn": 19
+  },
+  "items": [
+    {
+      "kind": "fn",
+      "name": "test_single_rust_project_at_root",
+      "file": "tests/test_projects.py",
+      "line": 49,
+      "signature": "def test_single_rust_project_at_root(tmp_path: Path) -> None"
+    },
+    {
+      "kind": "fn",
+      "name": "test_single_python_project_at_root",
+      "file": "tests/test_projects.py",
+      "line": 66,
+      "signature": "def test_single_python_project_at_root(tmp_path: Path) -> None"
+    },
+    {
+      "kind": "fn",
+      "name": "test_multi_project_detection",
+      "file": "tests/test_projects.py",
+      "line": 89,
+      "signature": "def test_multi_project_detection(tmp_path: Path) -> None"
+    },
+    {
+      "kind": "fn",
+      "name": "test_path_convention_categories",
+      "file": "tests/test_projects.py",
+      "line": 105,
+      "signature": "def test_path_convention_categories(tmp_path: Path) -> None"
+    },
+    {
+      "kind": "fn",
+      "name": "test_skip_dirs_not_detected_as_projects",
+      "file": "tests/test_projects.py",
+      "line": 121,
+      "signature": "def test_skip_dirs_not_detected_as_projects(tmp_path: Path) -> None"
+    },
+    {
+      "kind": "fn",
+      "name": "test_include_glob_filters_to_apps_only",
+      "file": "tests/test_projects.py",
+      "line": 146,
+      "signature": "def test_include_glob_filters_to_apps_only(tmp_path: Path) -> None"
+    },
+    {
+      "kind": "fn",
+      "name": "test_exclude_glob_removes_one",
+      "file": "tests/test_projects.py",
+      "line": 159,
+      "signature": "def test_exclude_glob_removes_one(tmp_path: Path) -> None"
+    },
+    {
+      "kind": "fn",
+      "name": "test_per_project_name_and_category_override",
+      "file": "tests/test_projects.py",
+      "line": 173,
+      "signature": "def test_per_project_name_and_category_override(tmp_path: Path) -> None"
+    },
+    {
+      "kind": "fn",
+      "name": "test_id_disambiguation_on_slug_collision",
+      "file": "tests/test_projects.py",
+      "line": 197,
+      "signature": "def test_id_disambiguation_on_slug_collision(tmp_path: Path) -> None"
+    },
+    {
+      "kind": "fn",
+      "name": "test_nested_project_not_detected_inside_outer",
+      "file": "tests/test_projects.py",
+      "line": 211,
+      "signature": "def test_nested_project_not_detected_inside_outer(tmp_path: Path) -> None"
+    },
+    {
+      "kind": "fn",
+      "name": "test_manifest_precedence_rust_wins_over_ts",
+      "file": "tests/test_projects.py",
+      "line": 224,
+      "signature": "def test_manifest_precedence_rust_wins_over_ts(tmp_path: Path) -> None"
+    },
+    {
+      "kind": "fn",
+      "name": "test_slug_handles_weird_paths",
+      "file": "tests/test_projects.py",
+      "line": 241,
+      "signature": "def test_slug_handles_weird_paths() -> None"
+    },
+    {
+      "kind": "fn",
+      "name": "test_empty_repo_no_crash",
+      "file": "tests/test_repo_edges.py",
+      "line": 81,
+      "signature": "def test_empty_repo_no_crash(tmp_path: Path) -> None"
+    },
+    {
+      "kind": "fn",
+      "name": "test_single_project_no_edges",
+      "file": "tests/test_repo_edges.py",
+      "line": 93,
+      "signature": "def test_single_project_no_edges(tmp_path: Path) -> None"
+    },
+    {
+      "kind": "fn",
+      "name": "test_ts_npm_dependency_edge",
+      "file": "tests/test_repo_edges.py",
+      "line": 111,
+      "signature": "def test_ts_npm_dependency_edge(tmp_path: Path) -> None"
+    },
+    {
+      "kind": "fn",
+      "name": "test_python_import_edge",
+      "file": "tests/test_repo_edges.py",
+      "line": 145,
+      "signature": "def test_python_import_edge(tmp_path: Path) -> None"
+    },
+    {
+      "kind": "fn",
+      "name": "test_rust_unmatched_external_dep_dropped",
+      "file": "tests/test_repo_edges.py",
+      "line": 179,
+      "signature": "def test_rust_unmatched_external_dep_dropped(tmp_path: Path) -> None"
+    },
+    {
+      "kind": "fn",
+      "name": "test_cross_stack_name_collision_deterministic",
+      "file": "tests/test_repo_edges.py",
+      "line": 200,
+      "signature": "def test_cross_stack_name_collision_deterministic(tmp_path: Path) -> None"
+    },
+    {
+      "kind": "fn",
+      "name": "test_self_edges_suppressed",
+      "file": "tests/test_repo_edges.py",
+      "line": 254,
+      "signature": "def test_self_edges_suppressed(tmp_path: Path) -> None"
+    }
+  ],
+  "item_count": 19
+}
