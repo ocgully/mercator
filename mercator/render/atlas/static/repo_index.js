@@ -126,6 +126,52 @@
         ? '<div class="empty">No projects detected.</div>'
         : '<div id="proj-graph"></div>'}
     </section>
+    ${(() => {
+      const RB = DATA.repo_boundaries;
+      if (!RB) {
+        return `<section class="panel">
+          <h2>Repo-level boundaries</h2>
+          <div class="empty">No <code>.mercator/repo-boundaries.json</code>. Run <code>mercator boundaries init --repo</code> to scaffold cross-project DMZ rules.</div>
+        </section>`;
+      }
+      const rules = RB.rules || [];
+      const violations = RB.violations || [];
+      return `<section class="panel">
+        <h2>Repo-level boundaries (${rules.length} rule${rules.length===1?'':'s'})</h2>
+        ${rules.length === 0 ? '<div class="empty">No rules declared.</div>' : `
+          <table>
+            <thead><tr><th>Rule</th><th>From</th><th>Not to</th><th>Severity</th><th>Status</th></tr></thead>
+            <tbody>
+              ${rules.map(r => {
+                const c = r.violation_count || 0;
+                const badge = c
+                  ? `<span class="pill ${r.severity === 'error' ? 'danger' : 'warn'}">${c} violation${c===1?'':'s'}</span>`
+                  : `<span class="pill ok">pass</span>`;
+                return `<tr>
+                  <td><strong>${esc(r.name)}</strong>${r.rationale ? `<div style="color:var(--muted)">${esc(r.rationale)}</div>` : ''}</td>
+                  <td class="mono">${esc(r.from_selector)}</td>
+                  <td class="mono">${esc(r.not_to_selector)}</td>
+                  <td class="sev-${esc(r.severity)}">${esc(r.severity)}</td>
+                  <td>${badge}</td>
+                </tr>`;
+              }).join('')}
+            </tbody>
+          </table>`}
+        ${violations.length ? `
+          <h3>Repo violations (${violations.length})</h3>
+          <table>
+            <thead><tr><th>Severity</th><th>Rule</th><th>Path (project chain)</th><th>Rationale</th></tr></thead>
+            <tbody>
+              ${violations.map(v => `<tr>
+                <td class="sev-${esc(v.severity)}">${esc(v.severity)}</td>
+                <td>${esc(v.rule_name)}</td>
+                <td class="mono">${(v.path || []).map(p => `<a href="atlas/projects/${esc(p)}.html">${esc(p)}</a>`).join(' → ')}</td>
+                <td>${esc(v.rationale || '')}</td>
+              </tr>`).join('')}
+            </tbody>
+          </table>` : ''}
+      </section>`;
+    })()}
     <section class="panel">
       <h2>Cross-project edges (${EDGES.length})</h2>
       ${EDGES.length === 0

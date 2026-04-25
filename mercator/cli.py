@@ -134,6 +134,10 @@ def cmd_query(args) -> int:
             data = query_mod.projects(root)
         elif args.subject == "repo-edges":
             data = query_mod.repo_edges(root)
+        elif args.subject == "repo-boundaries":
+            data = query_mod.repo_boundaries(root)
+        elif args.subject == "repo-violations":
+            data = query_mod.repo_violations(root)
         elif args.subject == "systems":
             data = query_mod.systems(root, project_id)
         elif args.subject == "deps":
@@ -319,7 +323,7 @@ def cmd_check(args) -> int:
     if target_id:
         targets = [p for p in targets if p["id"] == target_id]
 
-    all_violations = []  # (project_id, violation)
+    all_violations = []  # (project_id_or_<repo>, violation)
     for proj in targets:
         ps = paths.project_storage_dir(repo_storage, proj["id"])
         sys_path = ps / "systems.json"
@@ -341,6 +345,22 @@ def cmd_check(args) -> int:
         for v in boundaries_mod.evaluate(sys_doc, bnd_doc):
             all_violations.append((proj["id"], v))
 
+    # Repo-level (cross-project) rules — only when targeting the whole repo
+    # (not a single --project).
+    if not target_id:
+        from mercator import repo_boundaries as repo_bnd_mod
+        from mercator import repo_edges as repo_edges_mod
+        try:
+            repo_bnd_doc = repo_bnd_mod.load(repo_storage)
+        except ValueError as exc:
+            print(f"mercator: repo-boundaries file error — {exc}", file=sys.stderr)
+            return 4
+        if repo_bnd_doc:
+            edges_doc = (repo_edges_mod.load_edges(repo_storage)
+                         or repo_edges_mod.compute_edges(root))
+            for v in repo_bnd_mod.evaluate(projects_doc, edges_doc, repo_bnd_doc):
+                all_violations.append(("<repo>", v))
+
     errors = [(pid, v) for pid, v in all_violations if v["severity"] == "error"]
     warnings = [(pid, v) for pid, v in all_violations if v["severity"] == "warning"]
     infos = [(pid, v) for pid, v in all_violations if v["severity"] == "info"]
@@ -361,10 +381,11 @@ def cmd_check(args) -> int:
                 print("mercator check: PASS — no boundary violations across all projects.")
             return 0
         print(f"mercator check: {len(errors)} error, {len(warnings)} warning, {len(infos)} info "
-              f"(across {len(targets)} project(s))")
+              f"(across {len(targets)} project(s) + repo-level)")
         for pid, v in all_violations:
             arrow = " -> ".join(v["path"])
-            print(f"  [{v['severity'].upper():7}] [{pid}] {v['rule_name']}")
+            scope = "repo" if pid == "<repo>" else f"project {pid}"
+            print(f"  [{v['severity'].upper():7}] [{scope}] {v['rule_name']}")
             print(f"             {arrow}")
             if v.get("rationale"):
                 print(f"             ({v['rationale']})")
@@ -417,15 +438,20 @@ def cmd_render(args) -> int:
 
 
 def cmd_boundaries(args) -> int:
-    """Scaffold or validate boundaries.json — always project-scoped."""
+    """Scaffold or validate boundaries — project-scoped by default,
+    repo-level with `--repo`."""
     root = _project_root(args)
+    repo_storage = paths.mercator_dir(root)
+
+    if getattr(args, "repo", False):
+        return _cmd_boundaries_repo(args, repo_storage, root)
+
     project_id = getattr(args, "project", None)
     try:
         proj = query_mod.resolve_project(root, project_id)
     except ValueError as exc:
         print(f"mercator: {exc}", file=sys.stderr)
         return 1
-    repo_storage = paths.mercator_dir(root)
     ps = paths.project_storage_dir(repo_storage, proj["id"])
     path = ps / "boundaries.json"
 
@@ -464,6 +490,50 @@ def cmd_boundaries(args) -> int:
             return 4
         if not args.quiet:
             print(f"mercator: {len(rules)} rule(s) OK in '{proj['id']}'")
+        return 0
+    print(f"mercator: unknown boundaries action '{args.action}'", file=sys.stderr)
+    return 1
+
+
+def _cmd_boundaries_repo(args, repo_storage: Path, repo_root: Path) -> int:
+    """Repo-level (cross-project) boundaries scaffold + validate."""
+    from mercator import repo_boundaries as repo_bnd_mod
+    from mercator import repo_edges as repo_edges_mod
+    path = repo_storage / "repo-boundaries.json"
+
+    if args.action == "init":
+        if path.is_file() and not args.force:
+            print(f"mercator: {path} already exists. Use --force to overwrite.", file=sys.stderr)
+            return 1
+        repo_storage.mkdir(parents=True, exist_ok=True)
+        path.write_text(repo_bnd_mod.SCAFFOLD_JSON, encoding="utf-8")
+        if not args.quiet:
+            print(f"Scaffolded {path}")
+            print("Edit it to declare cross-project DMZ rules. Rerun `mercator check` to see violations.")
+        return 0
+
+    if args.action == "validate":
+        try:
+            doc = repo_bnd_mod.load(repo_storage)
+        except ValueError as exc:
+            print(f"mercator: {exc}", file=sys.stderr)
+            return 4
+        if not doc:
+            print("mercator: no repo-boundaries.json to validate.")
+            return 0
+        projects_doc = projects_mod.load_projects(repo_storage) or projects_mod.detect_projects(repo_root)
+        from mercator import repo_edges as repo_edges_mod2
+        edges_doc = repo_edges_mod2.load_edges(repo_storage) or repo_edges_mod2.compute_edges(repo_root)
+        rules = repo_bnd_mod.summarise_rules(projects_doc, edges_doc, doc)
+        empty = [r for r in rules if not r["resolved_from"] or not r["resolved_not_to"]]
+        if empty:
+            print(f"mercator: {len(empty)} repo-rule(s) resolve to empty project set:", file=sys.stderr)
+            for r in empty:
+                print(f"  - {r['name']}: from={r['from_selector']!r} -> {r['resolved_from']}, "
+                      f"not_to={r['not_to_selector']!r} -> {r['resolved_not_to']}", file=sys.stderr)
+            return 4
+        if not args.quiet:
+            print(f"mercator: {len(rules)} repo-rule(s) OK")
         return 0
     print(f"mercator: unknown boundaries action '{args.action}'", file=sys.stderr)
     return 1
@@ -564,7 +634,8 @@ def _build_parser(prog: str = "mercator") -> argparse.ArgumentParser:
 
     sp = sub.add_parser("query", help="Query a slice. JSON by default.")
     sp.add_argument("subject",
-                    choices=["projects", "repo-edges", "systems", "deps", "contract", "symbol", "touches", "system",
+                    choices=["projects", "repo-edges", "repo-boundaries", "repo-violations",
+                             "systems", "deps", "contract", "symbol", "touches", "system",
                              "boundaries", "violations", "assets", "strings"])
     sp.add_argument("name", nargs="?", help="Name/path argument for the query")
     sp.add_argument("--project", default=None, help="Target project id (required when repo has >1 project)")
@@ -606,9 +677,11 @@ def _build_parser(prog: str = "mercator") -> argparse.ArgumentParser:
     sp.add_argument("--quiet", action="store_true")
     sp.set_defaults(func=cmd_render)
 
-    sp = sub.add_parser("boundaries", help="Scaffold or validate boundaries.json (per project)")
+    sp = sub.add_parser("boundaries", help="Scaffold or validate boundaries.json")
     sp.add_argument("action", choices=["init", "validate"])
     sp.add_argument("--project", default=None, help="Project to operate on (required when repo has >1)")
+    sp.add_argument("--repo", action="store_true",
+                    help="Operate on repo-level (cross-project) boundaries instead of a single project's")
     sp.add_argument("--force", action="store_true", help="(init) Overwrite existing boundaries.json")
     sp.add_argument("--quiet", action="store_true")
     sp.set_defaults(func=cmd_boundaries)

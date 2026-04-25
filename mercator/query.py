@@ -98,6 +98,62 @@ def repo_edges(repo_root: Path) -> dict:
     return doc
 
 
+def repo_boundaries(repo_root: Path) -> dict:
+    """Return repo-level (cross-project) DMZ rules + per-rule pass/fail."""
+    from mercator import repo_boundaries as repo_bnd_mod
+    from mercator import repo_edges as repo_edges_mod
+    repo_storage = paths.mercator_dir(repo_root)
+    projects_doc = projects_mod.load_projects(repo_storage)
+    if projects_doc is None:
+        projects_doc = projects_mod.detect_projects(repo_root)
+    edges_doc = repo_edges_mod.load_edges(repo_storage) or repo_edges_mod.compute_edges(repo_root)
+    try:
+        bnd_doc = repo_bnd_mod.load(repo_storage)
+    except ValueError as exc:
+        return {"query": "repo-boundaries", "error": str(exc)}
+    if not bnd_doc:
+        return {
+            "query": "repo-boundaries", "configured": False,
+            "note": "No repo-boundaries.json. Run `mercator boundaries init --repo` to scaffold one.",
+            "rules": [], "violation_count": 0,
+        }
+    rules = repo_bnd_mod.summarise_rules(projects_doc, edges_doc, bnd_doc)
+    violations = repo_bnd_mod.evaluate(projects_doc, edges_doc, bnd_doc)
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "query": "repo-boundaries", "configured": True,
+        "rule_count": len(rules), "violation_count": len(violations),
+        "blocking": repo_bnd_mod.has_blocking_violations(violations),
+        "rules": rules,
+    }
+
+
+def repo_violations(repo_root: Path) -> dict:
+    """Return cross-project violations only (the failing rules)."""
+    from mercator import repo_boundaries as repo_bnd_mod
+    from mercator import repo_edges as repo_edges_mod
+    repo_storage = paths.mercator_dir(repo_root)
+    projects_doc = projects_mod.load_projects(repo_storage)
+    if projects_doc is None:
+        projects_doc = projects_mod.detect_projects(repo_root)
+    edges_doc = repo_edges_mod.load_edges(repo_storage) or repo_edges_mod.compute_edges(repo_root)
+    try:
+        bnd_doc = repo_bnd_mod.load(repo_storage)
+    except ValueError as exc:
+        return {"query": "repo-violations", "error": str(exc)}
+    if not bnd_doc:
+        return {"query": "repo-violations", "configured": False,
+                "violation_count": 0, "violations": []}
+    vs = repo_bnd_mod.evaluate(projects_doc, edges_doc, bnd_doc)
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "query": "repo-violations", "configured": True,
+        "violation_count": len(vs),
+        "blocking": repo_bnd_mod.has_blocking_violations(vs),
+        "violations": vs,
+    }
+
+
 # ---------------------------------------------------------------------------
 # Per-project queries
 # ---------------------------------------------------------------------------

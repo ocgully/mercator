@@ -89,7 +89,30 @@ def _refresh_ts(project_dir: Path, project_storage: Path, affected: Optional[Set
     systems_doc = ts.build_systems(project_dir)
     _write_json(project_storage / "systems.json", systems_doc)
     (project_storage / "systems.md").write_text(systems_md.render(systems_doc), encoding="utf-8")
-    return systems_doc, 0
+
+    contracts_dir = project_storage / "contracts"
+    contracts_dir.mkdir(exist_ok=True)
+    written = 0
+    for s in systems_doc["systems"]:
+        name = s["name"]
+        if affected is not None and name not in affected:
+            continue
+        manifest_rel = s.get("manifest_path")
+        if not manifest_rel:
+            continue
+        # System names may contain '/' (scoped packages like @scope/foo,
+        # or path-derived tsconfig-ref names). Sanitise for the filename.
+        safe_name = name.replace("/", "__").replace("\\", "__")
+        try:
+            doc = ts.build_contract(project_dir, name, manifest_rel)
+        except (FileNotFoundError, ValueError):
+            continue
+        _write_json(contracts_dir / f"{safe_name}.json", doc)
+        (contracts_dir / f"{safe_name}.md").write_text(
+            contract_md.render(doc), encoding="utf-8"
+        )
+        written += 1
+    return systems_doc, written
 
 
 def _refresh_python(project_dir: Path, project_storage: Path, affected: Optional[Set[str]]):

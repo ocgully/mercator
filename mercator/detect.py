@@ -52,7 +52,7 @@ def layer_support(stack: str) -> dict:
         "rust":   {"systems": "implemented", "contracts": "implemented", "symbols": "implemented (definition-lookup)", "assets": "implemented (dir-walk + UI-setter strings)"},
         "unity":  {"systems": "implemented", "contracts": "stub",        "symbols": "stub",                             "assets": "implemented (Assets/+Packages/ walk + PO/CSV strings)"},
         "dart":   {"systems": "implemented", "contracts": "stub",        "symbols": "stub",                             "assets": "implemented (pubspec flutter.assets + ARB strings)"},
-        "ts":     {"systems": "implemented", "contracts": "stub",        "symbols": "stub",                             "assets": "stub"},
+        "ts":     {"systems": "implemented", "contracts": "implemented (regex export-scan)", "symbols": "stub",            "assets": "stub"},
         "python": {"systems": "implemented", "contracts": "implemented (AST public-surface)", "symbols": "stub", "assets": "stub"},
         "go":     {"systems": "stub",        "contracts": "stub",        "symbols": "stub",                             "assets": "stub"},
     }

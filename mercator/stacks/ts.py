@@ -29,6 +29,7 @@ Stdlib-only.
 from __future__ import annotations
 
 import json
+import os
 import re
 from pathlib import Path, PurePath
 from typing import Dict, List, Optional, Set, Tuple
@@ -430,3 +431,556 @@ def build_systems(project_root: Path) -> dict:
         ),
         "systems": systems,
     }
+
+
+# ---------------------------------------------------------------------------
+# Layer 2 — public-surface (`export …`) scanner
+# ---------------------------------------------------------------------------
+#
+# Regex-based, stdlib-only. Mirrors the Rust `pub`-item scanner: per-file,
+# blank out comments/strings/regex/template-literals so they can't produce
+# false matches, compute per-line brace depth so we only consider top-level
+# declarations, then match a small set of regexes against each top-level
+# line. Aims for ~90% of real-world declarations — documented limitations
+# appear in `source_tool_note` so users know what's missed.
+
+
+# Skip file name suffixes (on top of SKIP_DIRS which is used for dir-walk).
+_TS_SKIP_FILE_SUFFIXES = (".d.ts", ".test.ts", ".spec.ts",
+                          ".test.tsx", ".spec.tsx")
+
+
+def _strip_ts_source(text: str) -> str:
+    """Blank out comments and string/template/regex literals in `text`.
+
+    Produces a same-length buffer with only "code" bytes un-masked so the
+    scanner + depth tracker agree on what counts as code. Newlines are
+    preserved so line numbers stay stable.
+
+    Template literals (`...${…}...`) are partially handled: backtick-delimited
+    spans are blanked, but nested `${ expr }` interpolation is also blanked
+    (we don't try to re-enable code inside interpolations — nested braces
+    inside `${}` would still contribute to brace-depth in a fully-accurate
+    parser, but regex-scanner-fidelity is intentionally close to the Rust
+    pattern).
+    """
+    out = list(text)
+    i = 0
+    n = len(text)
+    while i < n:
+        c = text[i]
+        nxt = text[i + 1] if i + 1 < n else ""
+
+        # Line comment //…
+        if c == "/" and nxt == "/":
+            j = i
+            while j < n and text[j] != "\n":
+                out[j] = " "
+                j += 1
+            i = j
+            continue
+
+        # Block comment /* … */
+        if c == "/" and nxt == "*":
+            out[i] = " "
+            out[i + 1] = " "
+            j = i + 2
+            while j < n:
+                if text[j] == "*" and j + 1 < n and text[j + 1] == "/":
+                    out[j] = " "
+                    out[j + 1] = " "
+                    j += 2
+                    break
+                if text[j] != "\n":
+                    out[j] = " "
+                j += 1
+            i = j
+            continue
+
+        # String literal " … " or ' … '
+        if c == '"' or c == "'":
+            quote = c
+            out[i] = " "
+            j = i + 1
+            while j < n:
+                if text[j] == "\\" and j + 1 < n:
+                    if text[j] != "\n":
+                        out[j] = " "
+                    if text[j + 1] != "\n":
+                        out[j + 1] = " "
+                    j += 2
+                    continue
+                if text[j] == quote:
+                    out[j] = " "
+                    j += 1
+                    break
+                if text[j] == "\n":
+                    # Unterminated on this line — bail to avoid runaway.
+                    break
+                out[j] = " "
+                j += 1
+            i = j
+            continue
+
+        # Template literal ` … ` (including ${ … } interpolation)
+        if c == "`":
+            out[i] = " "
+            j = i + 1
+            while j < n:
+                if text[j] == "\\" and j + 1 < n:
+                    if text[j] != "\n":
+                        out[j] = " "
+                    if text[j + 1] != "\n":
+                        out[j + 1] = " "
+                    j += 2
+                    continue
+                if text[j] == "`":
+                    out[j] = " "
+                    j += 1
+                    break
+                if text[j] != "\n":
+                    out[j] = " "
+                j += 1
+            i = j
+            continue
+
+        i += 1
+    return "".join(out)
+
+
+def _line_depths(cleaned: str) -> List[int]:
+    """Per-line brace depth at the START of each line (1-indexed via [line-1])."""
+    depths = [0]
+    depth = 0
+    for ch in cleaned:
+        if ch == "\n":
+            depths.append(depth)
+        elif ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+    return depths
+
+
+# --- Export regexes (applied to cleaned top-level lines, leading WS stripped) ---
+# We match the DECLARATION-form exports. `export { ... }` (local re-exports
+# without `from`) is handled separately because it can span multiple lines.
+
+_EXPORT_PREFIX = r"export\s+"
+
+_RE_FUNCTION = re.compile(
+    _EXPORT_PREFIX + r"(?P<async>async\s+)?function\s*\*?\s+"
+    r"(?P<name>[A-Za-z_$][\w$]*)"
+    r"(?P<rest>.*)$"
+)
+_RE_DEFAULT_FUNCTION = re.compile(
+    _EXPORT_PREFIX + r"default\s+(?P<async>async\s+)?function\s*\*?\s*"
+    r"(?P<name>[A-Za-z_$][\w$]*)?"
+    r"(?P<rest>.*)$"
+)
+_RE_CLASS = re.compile(
+    _EXPORT_PREFIX + r"(?:abstract\s+)?class\s+"
+    r"(?P<name>[A-Za-z_$][\w$]*)"
+    r"(?P<rest>.*)$"
+)
+_RE_DEFAULT_CLASS = re.compile(
+    _EXPORT_PREFIX + r"default\s+(?:abstract\s+)?class\s+"
+    r"(?P<name>[A-Za-z_$][\w$]*)?"
+    r"(?P<rest>.*)$"
+)
+_RE_INTERFACE = re.compile(
+    _EXPORT_PREFIX + r"interface\s+(?P<name>[A-Za-z_$][\w$]*)(?P<rest>.*)$"
+)
+_RE_TYPE = re.compile(
+    _EXPORT_PREFIX + r"type\s+(?P<name>[A-Za-z_$][\w$]*)\s*(?P<gens><[^=]*>)?\s*=\s*"
+    r"(?P<rhs>.*)$"
+)
+_RE_ENUM = re.compile(
+    _EXPORT_PREFIX + r"(?:const\s+)?enum\s+(?P<name>[A-Za-z_$][\w$]*)(?P<rest>.*)$"
+)
+_RE_VAR = re.compile(
+    _EXPORT_PREFIX + r"(?P<kw>const|let|var)\s+(?P<name>[A-Za-z_$][\w$]*)"
+    r"(?P<rest>.*)$"
+)
+# `export * from "./mod"` or `export * as ns from "./mod"`
+_RE_STAR_FROM = re.compile(
+    _EXPORT_PREFIX + r"\*\s*(?:as\s+(?P<alias>[A-Za-z_$][\w$]*)\s+)?from\s*"
+    r"[\"'](?P<mod>[^\"']+)[\"']"
+)
+# `export { a, b as c } [from "./mod"];` — may span multiple lines. We detect
+# the opening `export {` and capture through the closing `}`.
+_RE_NAMED_OPEN = re.compile(_EXPORT_PREFIX + r"(?:type\s+)?\{(?P<body>.*)$")
+
+_RE_DEFAULT_EXPR = re.compile(_EXPORT_PREFIX + r"default\b(?P<rest>.*)$")
+
+
+def _parse_named_members(body: str) -> List[str]:
+    """Parse the content of `export { … }` into the exported (external) names.
+
+    For `foo, bar as baz`, returns ["foo", "baz"].
+    """
+    names: List[str] = []
+    for raw in body.split(","):
+        part = raw.strip()
+        if not part:
+            continue
+        # Handle `type foo` / `type foo as bar` (TS 3.8+ type-only specifier).
+        if part.startswith("type "):
+            part = part[5:].strip()
+        m = re.match(r"([A-Za-z_$][\w$]*|default)(?:\s+as\s+([A-Za-z_$][\w$]*))?\s*$", part)
+        if not m:
+            continue
+        names.append(m.group(2) or m.group(1))
+    return names
+
+
+def _trim_signature(s: str, maxlen: int = 140) -> str:
+    s = s.strip()
+    if len(s) > maxlen:
+        s = s[: maxlen - 3] + "..."
+    return s
+
+
+def _scan_ts_file(path: Path, scope_dir: Path) -> List[dict]:
+    """Return public-surface items for a single .ts/.tsx file."""
+    try:
+        text = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        try:
+            text = path.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            return []
+    # Strip UTF-8 BOM so the first line matches cleanly.
+    if text.startswith("﻿"):
+        text = text[1:]
+
+    cleaned = _strip_ts_source(text)
+    depths = _line_depths(cleaned)
+    cleaned_lines = cleaned.splitlines()
+    orig_lines = text.splitlines()
+
+    try:
+        rel_file = PurePath(str(path.relative_to(scope_dir))).as_posix()
+    except ValueError:
+        rel_file = path.name
+
+    items: List[dict] = []
+    i = 0
+    n = len(cleaned_lines)
+    while i < n:
+        line_no = i + 1
+        if i >= len(depths) or depths[i] != 0:
+            i += 1
+            continue
+        cleaned_line = cleaned_lines[i]
+        cleaned_stripped = cleaned_line.lstrip()
+        # Fast pre-filter: the `export` keyword must exist at start of line
+        # AFTER comments/strings are blanked (so commented-out `// export …`
+        # won't match, nor will occurrences inside string literals).
+        if not cleaned_stripped.startswith("export"):
+            i += 1
+            continue
+        after = cleaned_stripped[6:7]
+        if after and after not in (" ", "\t", "{", "*"):
+            i += 1
+            continue
+
+        # Run detailed regex matching against the ORIGINAL line so string
+        # literals ("./mod" in re-exports) and type annotations are preserved.
+        orig_line = orig_lines[i] if i < len(orig_lines) else cleaned_line
+        orig_stripped = orig_line.strip()
+        stripped = orig_line.lstrip()
+
+        # `export * from "..."` / `export * as ns from "..."`
+        m = _RE_STAR_FROM.match(stripped)
+        if m:
+            alias = m.group("alias")
+            if alias:
+                items.append({
+                    "kind": "re-export", "name": alias, "file": rel_file,
+                    "line": line_no,
+                    "signature": f"export * as {alias} from \"{m.group('mod')}\"",
+                })
+            else:
+                items.append({
+                    "kind": "re-export", "name": "*", "file": rel_file,
+                    "line": line_no,
+                    "signature": f"export * from \"{m.group('mod')}\"",
+                })
+            i += 1
+            continue
+
+        # `export function foo(...)` / `export async function foo(...)`
+        m = _RE_FUNCTION.match(stripped)
+        if m:
+            kind = "async fn" if m.group("async") else "fn"
+            items.append({
+                "kind": kind, "name": m.group("name"), "file": rel_file,
+                "line": line_no,
+                "signature": _trim_signature(orig_stripped),
+            })
+            i += 1
+            continue
+
+        # `export default function foo(...)` (name optional)
+        m = _RE_DEFAULT_FUNCTION.match(stripped)
+        if m:
+            kind = "async fn" if m.group("async") else "fn"
+            inner = m.group("name")
+            name = f"default({inner})" if inner else "default"
+            items.append({
+                "kind": kind, "name": name, "file": rel_file,
+                "line": line_no,
+                "signature": _trim_signature(orig_stripped),
+            })
+            i += 1
+            continue
+
+        # `export [abstract] class Foo ...`
+        m = _RE_CLASS.match(stripped)
+        if m:
+            items.append({
+                "kind": "class", "name": m.group("name"), "file": rel_file,
+                "line": line_no,
+                "signature": _trim_signature(orig_stripped),
+            })
+            i += 1
+            continue
+
+        # `export default class Foo` (name optional)
+        m = _RE_DEFAULT_CLASS.match(stripped)
+        if m:
+            inner = m.group("name")
+            name = f"default({inner})" if inner else "default"
+            items.append({
+                "kind": "class", "name": name, "file": rel_file,
+                "line": line_no,
+                "signature": _trim_signature(orig_stripped),
+            })
+            i += 1
+            continue
+
+        # `export interface Foo …`
+        m = _RE_INTERFACE.match(stripped)
+        if m:
+            items.append({
+                "kind": "interface", "name": m.group("name"), "file": rel_file,
+                "line": line_no,
+                "signature": _trim_signature(orig_stripped),
+            })
+            i += 1
+            continue
+
+        # `export type Foo = …`
+        m = _RE_TYPE.match(stripped)
+        if m:
+            rhs = m.group("rhs").rstrip().rstrip(";").strip()
+            if len(rhs) > 80:
+                rhs = rhs[:77] + "..."
+            sig = f"type {m.group('name')} = {rhs}"
+            items.append({
+                "kind": "type", "name": m.group("name"), "file": rel_file,
+                "line": line_no,
+                "signature": _trim_signature(sig),
+            })
+            i += 1
+            continue
+
+        # `export enum Foo …` / `export const enum Foo …`
+        m = _RE_ENUM.match(stripped)
+        if m:
+            items.append({
+                "kind": "enum", "name": m.group("name"), "file": rel_file,
+                "line": line_no,
+                "signature": _trim_signature(orig_stripped),
+            })
+            i += 1
+            continue
+
+        # `export const/let/var foo [= …]`
+        m = _RE_VAR.match(stripped)
+        if m:
+            items.append({
+                "kind": "const", "name": m.group("name"), "file": rel_file,
+                "line": line_no,
+                "signature": _trim_signature(orig_stripped),
+            })
+            i += 1
+            continue
+
+        # `export { a, b as c } [from "…"]` — possibly multi-line.
+        m = _RE_NAMED_OPEN.match(stripped)
+        if m:
+            # Collect until the matching `}`.
+            body_chunks: List[str] = []
+            body_chunks.append(m.group("body"))
+            # Does the opening line close?
+            end_line = i
+            closed = False
+            if "}" in m.group("body"):
+                closed = True
+            else:
+                j = i + 1
+                while j < n and j < i + 200:
+                    body_chunks.append(cleaned_lines[j])
+                    if "}" in cleaned_lines[j]:
+                        end_line = j
+                        closed = True
+                        break
+                    j += 1
+            if not closed:
+                i += 1
+                continue
+            joined = " ".join(body_chunks)
+            # Split at the closing brace — names live before it; "from" clause after.
+            brace_end = joined.find("}")
+            body = joined[:brace_end] if brace_end != -1 else joined
+            names = _parse_named_members(body)
+            sig = _trim_signature(orig_stripped)
+            for name in names:
+                items.append({
+                    "kind": "re-export", "name": name, "file": rel_file,
+                    "line": line_no,
+                    "signature": sig,
+                })
+            i = end_line + 1
+            continue
+
+        # `export default <expr>;` — fall-through default value export.
+        m = _RE_DEFAULT_EXPR.match(stripped)
+        if m:
+            items.append({
+                "kind": "const", "name": "default", "file": rel_file,
+                "line": line_no,
+                "signature": _trim_signature(orig_stripped),
+            })
+            i += 1
+            continue
+
+        i += 1
+
+    return items
+
+
+def _ts_source_files(scope_dir: Path, child_scope_dirs: Set[Path]) -> List[Path]:
+    """Walk `*.ts`/`*.tsx` under `scope_dir`, skipping SKIP_DIRS and any
+    subtree owned by another system (child_scope_dirs).
+
+    Declaration files (`.d.ts`), tests, and specs are also skipped.
+    """
+    out: List[Path] = []
+    if not scope_dir.is_dir():
+        return out
+
+    def _walk(d: Path) -> None:
+        try:
+            entries = list(d.iterdir())
+        except OSError:
+            return
+        for entry in entries:
+            try:
+                if entry.is_dir():
+                    if entry.name in SKIP_DIRS:
+                        continue
+                    if entry.resolve() in child_scope_dirs:
+                        continue
+                    _walk(entry)
+                elif entry.is_file():
+                    name = entry.name
+                    # Skip .d.ts, .test.*, .spec.*
+                    if name.endswith(_TS_SKIP_FILE_SUFFIXES):
+                        continue
+                    if name.endswith(".ts") or name.endswith(".tsx"):
+                        out.append(entry)
+            except OSError:
+                continue
+
+    _walk(scope_dir)
+    out.sort()
+    return out
+
+
+def build_contract(project_root: Path, system_name: str,
+                   manifest_rel: str) -> dict:
+    """Layer 2: public exports from a TS system's `.ts`/`.tsx` source files.
+
+    `manifest_rel` is the system's manifest path (package.json OR tsconfig.json)
+    relative to the project root. The system's scope is the manifest's parent
+    directory (mirroring `scope_dir` in systems.json).
+    """
+    project_root = project_root.resolve()
+    manifest = (project_root / manifest_rel).resolve()
+    scope_dir = manifest.parent
+
+    # Load systems.json's sibling data from memory by re-running build_systems,
+    # purely to discover child-system scope_dirs we should NOT recurse into.
+    # (Matches Python stack behaviour: sub-packages belong to themselves.)
+    child_scopes: Set[Path] = set()
+    try:
+        sys_doc = build_systems(project_root)
+    except Exception:  # noqa: BLE001
+        sys_doc = {"systems": []}
+    scope_resolved = scope_dir.resolve()
+    for s in sys_doc.get("systems", []):
+        s_scope = s.get("scope_dir") or ""
+        if not s_scope or s_scope == ".":
+            other = project_root
+        else:
+            other = (project_root / s_scope).resolve()
+        if other == scope_resolved:
+            continue
+        # Only treat as a "child" if it's strictly under scope_resolved.
+        try:
+            other.relative_to(scope_resolved)
+        except ValueError:
+            continue
+        if other != scope_resolved:
+            child_scopes.add(other)
+
+    files = _ts_source_files(scope_dir, child_scopes)
+
+    items: List[dict] = []
+    for f in files:
+        items.extend(_scan_ts_file(f, scope_dir))
+
+    items.sort(key=lambda it: (it["file"], it["line"], it["name"]))
+
+    counts: Dict[str, int] = {}
+    for it in items:
+        counts[it["kind"]] = counts.get(it["kind"], 0) + 1
+
+    try:
+        scope_rel = PurePath(
+            os.path.relpath(str(scope_dir), str(project_root))
+        ).as_posix()
+    except ValueError:
+        scope_rel = None
+
+    doc = {
+        "schema_version": SCHEMA_VERSION,
+        "layer": "contract",
+        "system": system_name,
+        "stack": "ts",
+        "source_tool": "ts_export_scan",
+        "source_tool_note": (
+            "Regex scan of top-level `export …` declarations in .ts/.tsx files "
+            "under the system's scope directory (skipping SKIP_DIRS, .d.ts, "
+            "*.test.*, *.spec.*, and subtrees owned by another system). "
+            "Detects: function / async function / class / interface / type / "
+            "enum (incl. const enum) / const-let-var / default function|class / "
+            "re-exports (`export { a, b as c } [from …]` and `export * [as n] "
+            "from …`). KNOWN GAPS: exports nested inside `namespace {}` / "
+            "`module {}` / `declare …` blocks are missed (top-level-only scan); "
+            "computed export names, decorator-generated declarations, and "
+            "TypeScript-plugin / macro-expanded types are not resolved; "
+            "`export = foo` (CommonJS-style) is not detected; `export default "
+            "<expression>` is surfaced as a single `const` named `default`."
+        ),
+        "files_scanned": len(files),
+        "counts": counts,
+        "items": items,
+        "item_count": len(items),
+    }
+    if scope_rel is not None:
+        doc["scope_dir"] = scope_rel
+    return doc

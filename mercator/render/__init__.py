@@ -116,6 +116,17 @@ def write_atlas(repo_root: Path) -> Path:
         (per_project_dir / f"{proj['id']}.html").write_text(html, encoding="utf-8")
 
     repo_edges_doc = _repo_edges_mod.load_edges(repo_storage) or _repo_edges_mod.compute_edges(repo_root)
+    from mercator import repo_boundaries as _repo_bnd_mod
+    try:
+        repo_bnd_doc = _repo_bnd_mod.load(repo_storage)
+    except ValueError:
+        repo_bnd_doc = {}
+    repo_bnd_violations = (
+        _repo_bnd_mod.evaluate(projects_doc, repo_edges_doc, repo_bnd_doc) if repo_bnd_doc else []
+    )
+    repo_bnd_rules = (
+        _repo_bnd_mod.summarise_rules(projects_doc, repo_edges_doc, repo_bnd_doc) if repo_bnd_doc else []
+    )
     index_html = _atlas_html.render_repo_index(
         bundles=bundles,
         mercator_version=_version,
@@ -123,6 +134,8 @@ def write_atlas(repo_root: Path) -> Path:
         repo_meta=repo_meta,
         projects_doc=projects_doc,
         repo_edges=repo_edges_doc,
+        repo_boundaries={"rules": repo_bnd_rules, "violations": repo_bnd_violations}
+                       if repo_bnd_doc else None,
     )
     out = repo_storage / "atlas.html"
     out.write_text(index_html, encoding="utf-8")

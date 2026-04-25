@@ -24,6 +24,9 @@ classifiers = [
   "Topic :: Software Development :: Libraries",
 ]
 
+[project.optional-dependencies]
+dev = ["pytest>=7"]
+
 [project.urls]
 Homepage = "https://github.com/ocgully/mercator"
 Repository = "https://github.com/ocgully/mercator"
