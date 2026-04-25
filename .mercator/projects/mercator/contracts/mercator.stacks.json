@@ -99,42 +99,42 @@
       "kind": "const",
       "name": "ITEM_RE",
       "file": "mercator/stacks/rust.py",
-      "line": 83,
+      "line": 105,
       "signature": "ITEM_RE = re.compile('^pub\\\\s+\\n        (?:(?:async|unsafe|const|extern(?:\\\\s+\"[^\"]*\")?|de"
     },
     {
       "kind": "const",
       "name": "IDENT_RE",
       "file": "mercator/stacks/rust.py",
-      "line": 91,
+      "line": 113,
       "signature": "IDENT_RE = re.compile('([A-Za-z_][A-Za-z0-9_]*)')"
     },
     {
       "kind": "fn",
       "name": "strip_rust_source",
       "file": "mercator/stacks/rust.py",
-      "line": 94,
+      "line": 116,
       "signature": "def strip_rust_source(text: str) -> str"
     },
     {
       "kind": "fn",
       "name": "build_contract",
       "file": "mercator/stacks/rust.py",
-      "line": 310,
+      "line": 332,
       "signature": "def build_contract(project_root: Path, system_name: str, manifest_rel: str) -> dict"
     },
     {
       "kind": "const",
       "name": "DEFN_RE",
       "file": "mercator/stacks/rust.py",
-      "line": 355,
+      "line": 377,
       "signature": "DEFN_RE = re.compile('^(?:pub(?:\\\\([^)]*\\\\))?\\\\s+)?\\n        (?:(?:async|unsafe|const|exte"
     },
     {
       "kind": "fn",
       "name": "find_symbol",
       "file": "mercator/stacks/rust.py",
-      "line": 365,
+      "line": 387,
       "signature": "def find_symbol(project_root: Path, systems_doc: dict, name: str, want_kinds) -> List[dict]"
     },
     {

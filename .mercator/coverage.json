@@ -1,0 +1,33 @@
+{
+  "schema_version": "1",
+  "layer": "coverage",
+  "by_extension": {
+    ".py": {
+      "language": "python",
+      "total": 41,
+      "in_projects": 41,
+      "unmapped": 0,
+      "supported": true
+    },
+    ".js": {
+      "language": "javascript",
+      "total": 2,
+      "in_projects": 0,
+      "unmapped": 2,
+      "supported": true
+    }
+  },
+  "in_projects_total": 41,
+  "unmapped_total": 2,
+  "unmapped_top_dirs": [
+    {
+      "path": "mercator",
+      "count": 2
+    }
+  ],
+  "unsupported_languages": [],
+  "files_scanned": 53,
+  "max_files_capped": false,
+  "source_tool": "mercator_coverage_walk",
+  "source_tool_note": "Counts source files by extension across the repo and attributes each to its deepest covering project (or 'unmapped' if no project owns it). Mercator-supported languages (rust, python, typescript, javascript, dart) are flagged separately so the atlas can show how much of the repo is covered."
+}

@@ -15,7 +15,7 @@
       "kind": "fn",
       "name": "write_atlas",
       "file": "mercator/render/__init__.py",
-      "line": 62,
+      "line": 63,
       "signature": "def write_atlas(repo_root: Path) -> Path"
     },
     {

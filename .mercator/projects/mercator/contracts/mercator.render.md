@@ -15,7 +15,7 @@ _Last-refresh timestamp is in `.mercator/meta.json`; this file is time-stable._
 
 | Name | Signature | File:line |
 |------|-----------|-----------|
-| `write_atlas` | `def write_atlas(repo_root: Path) -> Path` | `mercator/render/__init__.py`:62 |
+| `write_atlas` | `def write_atlas(repo_root: Path) -> Path` | `mercator/render/__init__.py`:63 |
 | `render` | `def render(systems_doc: dict, boundaries_doc: dict) -> str` | `mercator/render/boundaries_md.py`:13 |
 | `render` | `def render(doc: dict) -> str` | `mercator/render/contract_md.py`:22 |
 | `render` | `def render(systems_doc: dict, boundaries_doc: dict) -> str` | `mercator/render/graph_md.py`:41 |

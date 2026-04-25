@@ -16,7 +16,7 @@ _Last-refresh timestamp is in `.mercator/meta.json`; this file is time-stable._
 |------|-----------|-----------|
 | `render_single_project` | `def render_single_project(*, bundle: dict, mercator_version: str, schema_version: str, repo_meta: Optional[dict] = None, projects_doc: Op...` | `mercator/render/atlas/__init__.py`:70 |
 | `render_repo_index` | `def render_repo_index(*, bundles: List[dict], mercator_version: str, schema_version: str, repo_meta: Optional[dict] = None, projects_doc:...` | `mercator/render/atlas/__init__.py`:119 |
-| `render` | `def render(*, systems_doc = None, contracts = None, boundaries_doc = None, violations = None, assets_doc = None, strings_doc = None, meta...` | `mercator/render/atlas/__init__.py`:247 |
+| `render` | `def render(*, systems_doc = None, contracts = None, boundaries_doc = None, violations = None, assets_doc = None, strings_doc = None, meta...` | `mercator/render/atlas/__init__.py`:249 |
 
 ## Source-tool note
 

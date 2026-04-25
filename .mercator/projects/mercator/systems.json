@@ -25,6 +25,7 @@
       "external_imports": [
         "__future__",
         "argparse",
+        "collections",
         "datetime",
         "fnmatch",
         "json",

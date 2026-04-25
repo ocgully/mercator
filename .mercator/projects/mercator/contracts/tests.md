@@ -2,13 +2,13 @@
 
 **Source tool**: `python_ast_contract`
 **Files scanned**: 7
-**Public items**: 85
+**Public items**: 87
 
 _Last-refresh timestamp is in `.mercator/meta.json`; this file is time-stable._
 
 ## Counts by kind
 
-- **Functions** — 85
+- **Functions** — 87
 
 ## Functions
 
@@ -34,9 +34,11 @@ _Last-refresh timestamp is in `.mercator/meta.json`; this file is time-stable._
 | `test_exclude_glob_removes_one` | `def test_exclude_glob_removes_one(tmp_path: Path) -> None` | `tests/test_projects.py`:159 |
 | `test_per_project_name_and_category_override` | `def test_per_project_name_and_category_override(tmp_path: Path) -> None` | `tests/test_projects.py`:173 |
 | `test_id_disambiguation_on_slug_collision` | `def test_id_disambiguation_on_slug_collision(tmp_path: Path) -> None` | `tests/test_projects.py`:197 |
-| `test_nested_project_not_detected_inside_outer` | `def test_nested_project_not_detected_inside_outer(tmp_path: Path) -> None` | `tests/test_projects.py`:211 |
-| `test_manifest_precedence_rust_wins_over_ts` | `def test_manifest_precedence_rust_wins_over_ts(tmp_path: Path) -> None` | `tests/test_projects.py`:224 |
-| `test_slug_handles_weird_paths` | `def test_slug_handles_weird_paths() -> None` | `tests/test_projects.py`:241 |
+| `test_nested_projects_both_detected` | `def test_nested_projects_both_detected(tmp_path: Path) -> None` | `tests/test_projects.py`:211 |
+| `test_workspace_only_cargo_root_skipped` | `def test_workspace_only_cargo_root_skipped(tmp_path: Path) -> None` | `tests/test_projects.py`:225 |
+| `test_workspace_root_with_package_kept` | `def test_workspace_root_with_package_kept(tmp_path: Path) -> None` | `tests/test_projects.py`:241 |
+| `test_manifest_precedence_rust_wins_over_ts` | `def test_manifest_precedence_rust_wins_over_ts(tmp_path: Path) -> None` | `tests/test_projects.py`:259 |
+| `test_slug_handles_weird_paths` | `def test_slug_handles_weird_paths() -> None` | `tests/test_projects.py`:276 |
 | `test_build_systems_flat_layout` | `def test_build_systems_flat_layout(tmp_path: Path) -> None` | `tests/test_python_stack.py`:36 |
 | `test_build_systems_src_layout` | `def test_build_systems_src_layout(tmp_path: Path) -> None` | `tests/test_python_stack.py`:46 |
 | `test_build_systems_subpackage_detected_as_separate_system` | `def test_build_systems_subpackage_detected_as_separate_system(tmp_path: Path) -> None` | `tests/test_python_stack.py`:56 |

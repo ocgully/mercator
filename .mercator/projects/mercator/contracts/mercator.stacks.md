@@ -24,9 +24,9 @@ _Last-refresh timestamp is in `.mercator/meta.json`; this file is time-stable._
 | `find_symbol` | `def find_symbol(project_root: Path, systems_doc: dict, name: str, want_kinds) -> List[dict]` | `mercator/stacks/python.py`:479 |
 | `build_contract` | `def build_contract(project_root: Path, system_name: str, manifest_rel: str) -> dict` | `mercator/stacks/python.py`:597 |
 | `build_systems` | `def build_systems(project_root: Path) -> dict` | `mercator/stacks/rust.py`:23 |
-| `strip_rust_source` | `def strip_rust_source(text: str) -> str` | `mercator/stacks/rust.py`:94 |
-| `build_contract` | `def build_contract(project_root: Path, system_name: str, manifest_rel: str) -> dict` | `mercator/stacks/rust.py`:310 |
-| `find_symbol` | `def find_symbol(project_root: Path, systems_doc: dict, name: str, want_kinds) -> List[dict]` | `mercator/stacks/rust.py`:365 |
+| `strip_rust_source` | `def strip_rust_source(text: str) -> str` | `mercator/stacks/rust.py`:116 |
+| `build_contract` | `def build_contract(project_root: Path, system_name: str, manifest_rel: str) -> dict` | `mercator/stacks/rust.py`:332 |
+| `find_symbol` | `def find_symbol(project_root: Path, systems_doc: dict, name: str, want_kinds) -> List[dict]` | `mercator/stacks/rust.py`:387 |
 | `build_assets` | `def build_assets(project_root: Path) -> dict` | `mercator/stacks/rust_assets.py`:93 |
 | `build_strings` | `def build_strings(project_root: Path) -> dict` | `mercator/stacks/rust_assets.py`:156 |
 | `build_systems` | `def build_systems(project_root: Path) -> dict` | `mercator/stacks/ts.py`:309 |
@@ -42,9 +42,9 @@ _Last-refresh timestamp is in `.mercator/meta.json`; this file is time-stable._
 | `SKIP_DIRS` | `SKIP_DIRS = {'.dart_tool', 'build', '.pub-cache', 'node_modules', '.git'}` | `mercator/stacks/dart.py`:22 |
 | `SKIP_DIRS` | `SKIP_DIRS = dart_stack.SKIP_DIRS` | `mercator/stacks/dart_assets.py`:24 |
 | `SKIP_DIRS` | `SKIP_DIRS = {'.git', '.hg', '.svn', '.venv', 'venv', 'env', '.env', '__pycache__', 'build', ` | `mercator/stacks/python.py`:37 |
-| `ITEM_RE` | `ITEM_RE = re.compile('^pub\\s+\n        (?:(?:async\|unsafe\|const\|extern(?:\\s+"[^"]*")?\|de` | `mercator/stacks/rust.py`:83 |
-| `IDENT_RE` | `IDENT_RE = re.compile('([A-Za-z_][A-Za-z0-9_]*)')` | `mercator/stacks/rust.py`:91 |
-| `DEFN_RE` | `DEFN_RE = re.compile('^(?:pub(?:\\([^)]*\\))?\\s+)?\n        (?:(?:async\|unsafe\|const\|exte` | `mercator/stacks/rust.py`:355 |
+| `ITEM_RE` | `ITEM_RE = re.compile('^pub\\s+\n        (?:(?:async\|unsafe\|const\|extern(?:\\s+"[^"]*")?\|de` | `mercator/stacks/rust.py`:105 |
+| `IDENT_RE` | `IDENT_RE = re.compile('([A-Za-z_][A-Za-z0-9_]*)')` | `mercator/stacks/rust.py`:113 |
+| `DEFN_RE` | `DEFN_RE = re.compile('^(?:pub(?:\\([^)]*\\))?\\s+)?\n        (?:(?:async\|unsafe\|const\|exte` | `mercator/stacks/rust.py`:377 |
 | `ASSET_DIRS` | `ASSET_DIRS = ('assets', 'res', 'resources', 'static')` | `mercator/stacks/rust_assets.py`:26 |
 | `SKIP_DIRS` | `SKIP_DIRS = {'target', '.git', 'node_modules', '.cargo', '.codemap', '.mercator'}` | `mercator/stacks/rust_assets.py`:27 |
 | `UI_SETTER_RE` | `UI_SETTER_RE = re.compile('\\.(text\|title\|label\|placeholder\|tooltip\|button\|heading\|caption\|hint` | `mercator/stacks/rust_assets.py`:31 |

@@ -18,8 +18,18 @@
       "tags": []
     }
   ],
-  "skipped_count": 0,
-  "skipped_sample": [],
+  "skipped_count": 9,
+  "skipped_sample": [
+    "tests/__pycache__",
+    "mercator/stacks/__pycache__",
+    "mercator/render/atlas/__pycache__",
+    "mercator/render/__pycache__",
+    "mercator/__pycache__",
+    ".pytest_cache",
+    ".mercator",
+    ".github",
+    ".git"
+  ],
   "source_tool": "mercator_project_walk",
   "source_tool_note": "Auto-detected by walking the repo for stack manifests. Override via .mercator/repo.toml (include/exclude/skip_dirs/[projects.<id>])."
 }

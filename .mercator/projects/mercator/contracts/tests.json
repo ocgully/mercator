@@ -7,7 +7,7 @@
   "source_tool_note": "Public surface = top-level `def` / `async def` / `class` whose names don't start with '_'. Module-level constants (UPPER_CASE assignments) are included as 'const' items. Only files directly inside the package are scanned; sub-packages are their own systems.",
   "files_scanned": 7,
   "counts": {
-    "fn": 85
+    "fn": 87
   },
   "items": [
     {
@@ -152,23 +152,37 @@
     },
     {
       "kind": "fn",
-      "name": "test_nested_project_not_detected_inside_outer",
+      "name": "test_nested_projects_both_detected",
       "file": "tests/test_projects.py",
       "line": 211,
-      "signature": "def test_nested_project_not_detected_inside_outer(tmp_path: Path) -> None"
+      "signature": "def test_nested_projects_both_detected(tmp_path: Path) -> None"
+    },
+    {
+      "kind": "fn",
+      "name": "test_workspace_only_cargo_root_skipped",
+      "file": "tests/test_projects.py",
+      "line": 225,
+      "signature": "def test_workspace_only_cargo_root_skipped(tmp_path: Path) -> None"
+    },
+    {
+      "kind": "fn",
+      "name": "test_workspace_root_with_package_kept",
+      "file": "tests/test_projects.py",
+      "line": 241,
+      "signature": "def test_workspace_root_with_package_kept(tmp_path: Path) -> None"
     },
     {
       "kind": "fn",
       "name": "test_manifest_precedence_rust_wins_over_ts",
       "file": "tests/test_projects.py",
-      "line": 224,
+      "line": 259,
       "signature": "def test_manifest_precedence_rust_wins_over_ts(tmp_path: Path) -> None"
     },
     {
       "kind": "fn",
       "name": "test_slug_handles_weird_paths",
       "file": "tests/test_projects.py",
-      "line": 241,
+      "line": 276,
       "signature": "def test_slug_handles_weird_paths() -> None"
     },
     {
@@ -606,5 +620,5 @@
       "signature": "def test_export_inside_block_comment_skipped(tmp_path: Path) -> None"
     }
   ],
-  "item_count": 85
+  "item_count": 87
 }
