@@ -214,6 +214,31 @@ absolute paths.
 
 Unknown stacks exit with code 3 and a message listing what would unlock support.
 
+## Continuous integration — `mercator check` as a CI gate
+
+Wiring `mercator check` into CI catches DMZ violations and structural drift
+at PR time, before they soak up reviewer attention. It complements (not
+replaces) type-check and test: those tell you the code runs; `mercator check`
+tells you the code respects the architecture you declared in
+`boundaries.json`.
+
+The bare-minimum CI step is one line:
+
+```yaml
+- run: pip install "mercator>=0.5,<1" && mercator init && mercator check
+```
+
+For a richer setup — caching `.mercator/` between runs, uploading a JSON
+violations report as an artifact, and posting an optional PR comment summary
+— see the example workflow at
+[`.github/workflows/mercator-check.yml`](.github/workflows/mercator-check.yml).
+It's under 80 lines and intended to be copied as-is or trimmed.
+
+`mercator check` exits non-zero only on `error`-severity violations; see the
+[Exit codes](#exit-codes) table above for the full mapping. For repos with
+multiple projects, all are checked by default; pass `--project <id>` to scope
+to one.
+
 ## CLI reference
 
 Repo-level (no `--project` needed):

@@ -1,0 +1,81 @@
+# Mercator structural CI gate.
+#
+# Runs `mercator check` on PRs and pushes to main, failing the build on any
+# error-severity DMZ violation across all detected projects. On failure,
+# uploads the JSON violations report as an artifact and (optionally) posts
+# a PR comment summary.
+#
+# Adapt the trigger branches and Python version to taste. The PR-comment
+# step needs `pull-requests: write`; without it, GitHub refuses the API
+# call and the step no-ops. Drop the `permissions:` block + that step if
+# your org disallows bot comments.
+
+name: mercator check
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Mercator
+        run: pip install "mercator>=0.5,<1"
+
+      # Cache is an OPTIMISATION — the workflow MUST work without it.
+      - name: Cache .mercator/
+        uses: actions/cache@v4
+        with:
+          path: .mercator
+          key: mercator-${{ hashFiles('**/Cargo.toml', '**/package.json', '**/pyproject.toml', '**/pubspec.yaml', '**/go.mod') }}-v0.5
+
+      - name: Initialise or refresh Mercator
+        run: |
+          if [ -f .mercator/projects.json ]; then
+            mercator refresh
+          else
+            mercator init
+          fi
+
+      - name: Run mercator check (gate)
+        run: mercator check
+
+      - name: Collect violations JSON
+        if: failure()
+        run: mercator check --format json > violations.json || true
+
+      - name: Upload violations artifact
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mercator-violations
+          path: violations.json
+          if-no-files-found: ignore
+
+      - name: Comment on PR
+        if: github.event_name == 'pull_request' && failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let body = '### mercator check failed\n\nError-severity DMZ violations detected. See the `mercator-violations` artifact for full JSON.';
+            try {
+              const data = JSON.parse(fs.readFileSync('violations.json', 'utf8'));
+              const v = Array.isArray(data) ? data : (data.violations || []);
+              if (v.length) body += `\n\n**${v.length} violation(s):**\n` + v.slice(0, 20).map(x => `- \`${x.rule || x.name || 'rule'}\`: ${x.message || x.path || ''}`).join('\n');
+            } catch (e) {}
+            await github.rest.issues.createComment({ owner: context.repo.owner, repo: context.repo.repo, issue_number: context.issue.number, body });

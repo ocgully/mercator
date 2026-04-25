@@ -448,6 +448,152 @@ def build_systems(project_root: Path) -> dict:
     }
 
 
+# ---------------------------------------------------------------------------
+# Layer 3 — definition lookup (visibility-agnostic)
+# ---------------------------------------------------------------------------
+
+# Allowed kinds for the Python symbol search. Other inputs (e.g. Rust-only
+# kinds like "struct" / "trait") map to an empty result — not an error —
+# because Layer 3 lives behind a stack-agnostic CLI flag.
+_PYTHON_SYMBOL_KINDS = {"fn", "async fn", "class", "const"}
+
+
+def _file_owning_system(rel_posix: str, scope_to_name: List[Tuple[str, str]]) -> Optional[str]:
+    """Return the dotted system name for a file path, picking the deepest
+    owning scope. `scope_to_name` is a pre-sorted list of (scope_dir, name).
+    """
+    best: Optional[str] = None
+    best_depth = -1
+    for scope, name in scope_to_name:
+        if scope == "." or not scope:
+            depth = 0
+            owns = True
+        else:
+            owns = rel_posix == scope or rel_posix.startswith(scope + "/")
+            depth = scope.count("/") + 1
+        if owns and depth > best_depth:
+            best, best_depth = name, depth
+    return best
+
+
+def find_symbol(project_root: Path, systems_doc: dict, name: str, want_kinds) -> List[dict]:
+    """Walk every .py file owned by a system in `systems_doc` and return
+    every top-level / method / module-const definition matching `name`.
+
+    `want_kinds` is either the string "any" or a set of kind strings drawn
+    from `{"fn", "async fn", "class", "const"}`. Anything else degrades to
+    "any" defensively (so Rust-specific kinds yield no Python matches via
+    the kind filter, but still don't 500).
+    """
+    # Normalise want_kinds.
+    if isinstance(want_kinds, str):
+        if want_kinds != "any":
+            want_kinds = "any"
+    elif isinstance(want_kinds, (set, frozenset, list, tuple)):
+        filtered = {k for k in want_kinds if k in _PYTHON_SYMBOL_KINDS}
+        if not filtered:
+            # Caller passed only kinds we don't recognise (e.g. {"struct"}).
+            # Honour the request by returning no matches rather than
+            # silently widening it.
+            return []
+        want_kinds = filtered
+    else:
+        want_kinds = "any"
+
+    project_root = project_root.resolve()
+    systems = systems_doc.get("systems", []) or []
+    # Sort scopes deepest-first preference handled inside _file_owning_system.
+    scope_to_name: List[Tuple[str, str]] = [
+        (s.get("scope_dir") or "", s["name"])
+        for s in systems
+        if s.get("name")
+    ]
+    if not scope_to_name:
+        return []
+
+    matches: List[dict] = []
+
+    def _kind_ok(kind: str) -> bool:
+        return want_kinds == "any" or kind in want_kinds
+
+    for py_path in sorted(project_root.rglob("*.py")):
+        try:
+            rel = py_path.relative_to(project_root)
+        except ValueError:
+            continue
+        rel_parts = rel.parts
+        if any(part in SKIP_DIRS or part.endswith(".egg-info") for part in rel_parts):
+            continue
+        rel_posix = rel.as_posix()
+        owner = _file_owning_system(rel_posix, scope_to_name)
+        if owner is None:
+            continue
+
+        try:
+            src = py_path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            continue
+        try:
+            tree = ast.parse(src, filename=str(py_path))
+        except SyntaxError:
+            continue
+        src_lines = src.splitlines()
+
+        def _record(node, kind: str, sig: str, ident: str) -> None:
+            if ident != name or not _kind_ok(kind):
+                return
+            matches.append({
+                "system": owner,
+                "kind": kind,
+                "name": ident,
+                "file": rel_posix,
+                "line": node.lineno,
+                "signature": sig,
+            })
+
+        # Top-level only — don't ast.walk(), which would descend into
+        # function bodies. Methods are surfaced by iterating ClassDef.body
+        # one level deep.
+        for node in tree.body:
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                sig = f"def {node.name}({_reconstruct_args(node.args)})"
+                if node.returns:
+                    sig += f" -> {_unparse(node.returns)}"
+                kind = "async fn" if isinstance(node, ast.AsyncFunctionDef) else "fn"
+                _record(node, kind, sig, node.name)
+            elif isinstance(node, ast.ClassDef):
+                bases = ", ".join(_unparse(b) for b in node.bases)
+                class_sig = f"class {node.name}" + (f"({bases})" if bases else "")
+                _record(node, "class", class_sig, node.name)
+                # Methods: one level deep into the class body.
+                for sub in node.body:
+                    if isinstance(sub, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                        msig = f"def {sub.name}({_reconstruct_args(sub.args)})"
+                        if sub.returns:
+                            msig += f" -> {_unparse(sub.returns)}"
+                        mkind = "async fn" if isinstance(sub, ast.AsyncFunctionDef) else "fn"
+                        _record(sub, mkind, msig, sub.name)
+            elif isinstance(node, ast.Assign):
+                # Module-level NAME = ...; surface every Name target.
+                # Use a short repr/snippet of the value.
+                value_src = _unparse(node.value)[:80]
+                for tgt in node.targets:
+                    if isinstance(tgt, ast.Name):
+                        sig = f"{tgt.id} = {value_src}"
+                        _record(node, "const", sig, tgt.id)
+            elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
+                # NAME: T = value  → also a const-ish binding.
+                value_src = _unparse(node.value)[:80] if node.value is not None else ""
+                ann = _unparse(node.annotation)
+                sig = f"{node.target.id}: {ann}"
+                if value_src:
+                    sig += f" = {value_src}"
+                _record(node, "const", sig, node.target.id)
+
+    matches.sort(key=lambda m: (m["file"], m["line"]))
+    return matches
+
+
 def build_contract(project_root: Path, system_name: str, manifest_rel: str) -> dict:
     """Layer 2 stub: public top-level defs / classes / module-level names."""
     project_root = project_root.resolve()

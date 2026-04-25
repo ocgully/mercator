@@ -1,0 +1,236 @@
+{
+  "version": "mercator 0.5.0 (schema 1)",
+  "git_sha": "495296bc5d69b1fe62e651cf77b183ab24c659e4",
+  "timestamp_utc": "2026-04-25T00:36:41+00:00",
+  "machine": "=== Machine ===\nOS:         Microsoft Windows 11 Home (10.0.26200)\nSystem:     Micro-Star International MS-7B86\nCPU:        AMD Ryzen 7 2700X (8 cores / 16 threads, Zen+ 12nm, 2018)\nRAM:        32 GB\n\n=== Storage (5 disks) ===\nPrimary work / repo disk: Samsung SSD 980 PRO with Heatsink 2TB (NVMe PCIe 4.0)\nSecondary SSD:            Samsung SSD 850 EVO 500GB (SATA)\nHDDs:                     SAMSUNG HD502HJ x2 (466 GB SATA), WDC WD30EZRZ 2.8TB (SATA)\n\n=== Tooling ===\nPython:     3.12.10\ngit:        2.37.3 (Git for Windows)\n",
+  "results": [
+    {
+      "name": "ripgrep",
+      "url": "https://github.com/BurntSushi/ripgrep",
+      "category": "Small Rust",
+      "clone_seconds": 1.753201200044714,
+      "skipped_clone": false,
+      "clone_error": null,
+      "clone_path": "C:\\tmp\\bench-clones\\ripgrep",
+      "mercator": {
+        "init_seconds": 2.9639016001019627,
+        "init_rc": 0,
+        "init_stderr": null,
+        "refresh_seconds": 1.6415082999737933,
+        "refresh_rc": 0,
+        "refresh_stderr": null,
+        "stacks": [
+          "rust"
+        ],
+        "project_count": 1,
+        "projects": [
+          {
+            "id": "ripgrep",
+            "name": "ripgrep",
+            "stack": "rust",
+            "category": "tool",
+            "systems": 10,
+            "contracts": 10
+          }
+        ],
+        "edge_count": 0,
+        "atlas_html_bytes": 71297,
+        "storage_bytes": 137072,
+        "atlas_html_exists": true,
+        "extra_atlas_bytes": 0,
+        "notes": []
+      },
+      "storage_dir": "C:\\tmp\\bench-atlases\\ripgrep"
+    },
+    {
+      "name": "bevy",
+      "url": "https://github.com/bevyengine/bevy",
+      "category": "Large Rust game engine",
+      "clone_seconds": 5.367984100012109,
+      "skipped_clone": false,
+      "clone_error": null,
+      "clone_path": "C:\\tmp\\bench-clones\\bevy",
+      "mercator": {
+        "init_seconds": 31.725452600046992,
+        "init_rc": 0,
+        "init_stderr": null,
+        "refresh_seconds": 10.552020699949935,
+        "refresh_rc": 0,
+        "refresh_stderr": null,
+        "stacks": [
+          "rust"
+        ],
+        "project_count": 1,
+        "projects": [
+          {
+            "id": "bevy",
+            "name": "bevy",
+            "stack": "rust",
+            "category": "lib",
+            "systems": 88,
+            "contracts": 88
+          }
+        ],
+        "edge_count": 0,
+        "atlas_html_bytes": 1048478,
+        "storage_bytes": 3232543,
+        "atlas_html_exists": true,
+        "extra_atlas_bytes": 0,
+        "notes": []
+      },
+      "storage_dir": "C:\\tmp\\bench-atlases\\bevy"
+    },
+    {
+      "name": "godot",
+      "url": "https://github.com/godotengine/godot",
+      "category": "C++ game engine (expected fail)",
+      "clone_seconds": 19.023263900075108,
+      "skipped_clone": false,
+      "clone_error": null,
+      "clone_path": "C:\\tmp\\bench-clones\\godot",
+      "mercator": {
+        "init_seconds": 0.3395590999862179,
+        "init_rc": 0,
+        "init_stderr": null,
+        "refresh_seconds": 0.492527199909091,
+        "refresh_rc": 0,
+        "refresh_stderr": null,
+        "stacks": [
+          "python"
+        ],
+        "project_count": 1,
+        "projects": [
+          {
+            "id": "godot",
+            "name": "godot",
+            "stack": "python",
+            "category": "lib",
+            "systems": 0,
+            "contracts": 0
+          }
+        ],
+        "edge_count": 0,
+        "atlas_html_bytes": 48239,
+        "storage_bytes": 52972,
+        "atlas_html_exists": true,
+        "extra_atlas_bytes": 0,
+        "notes": []
+      },
+      "storage_dir": "C:\\tmp\\bench-atlases\\godot"
+    },
+    {
+      "name": "vite",
+      "url": "https://github.com/vitejs/vite",
+      "category": "TypeScript monorepo",
+      "clone_seconds": 3.483139699907042,
+      "skipped_clone": false,
+      "clone_error": null,
+      "clone_path": "C:\\tmp\\bench-clones\\vite",
+      "mercator": {
+        "init_seconds": 9.432644800050184,
+        "init_rc": 0,
+        "init_stderr": null,
+        "refresh_seconds": 1.9013039999408647,
+        "refresh_rc": 0,
+        "refresh_stderr": null,
+        "stacks": [
+          "ts"
+        ],
+        "project_count": 1,
+        "projects": [
+          {
+            "id": "vitejs-vite-monorepo",
+            "name": "@vitejs/vite-monorepo",
+            "stack": "ts",
+            "category": "app",
+            "systems": 1,
+            "contracts": 1
+          }
+        ],
+        "edge_count": 0,
+        "atlas_html_bytes": 259308,
+        "storage_bytes": 696717,
+        "atlas_html_exists": true,
+        "extra_atlas_bytes": 0,
+        "notes": []
+      },
+      "storage_dir": "C:\\tmp\\bench-atlases\\vite"
+    },
+    {
+      "name": "aider",
+      "url": "https://github.com/Aider-AI/aider",
+      "category": "Python AI/LLM",
+      "clone_seconds": 4.1799998000497,
+      "skipped_clone": false,
+      "clone_error": null,
+      "clone_path": "C:\\tmp\\bench-clones\\aider",
+      "mercator": {
+        "init_seconds": 3.2092277000192553,
+        "init_rc": 0,
+        "init_stderr": null,
+        "refresh_seconds": 1.4933377000270411,
+        "refresh_rc": 0,
+        "refresh_stderr": null,
+        "stacks": [
+          "python"
+        ],
+        "project_count": 1,
+        "projects": [
+          {
+            "id": "aider-chat",
+            "name": "aider-chat",
+            "stack": "python",
+            "category": "tool",
+            "systems": 7,
+            "contracts": 7
+          }
+        ],
+        "edge_count": 0,
+        "atlas_html_bytes": 142634,
+        "storage_bytes": 343981,
+        "atlas_html_exists": true,
+        "extra_atlas_bytes": 0,
+        "notes": []
+      },
+      "storage_dir": "C:\\tmp\\bench-atlases\\aider"
+    },
+    {
+      "name": "opencode",
+      "url": "https://github.com/sst/opencode",
+      "category": "TypeScript AI/LLM",
+      "clone_seconds": 6.578504100092687,
+      "skipped_clone": false,
+      "clone_error": null,
+      "clone_path": "C:\\tmp\\bench-clones\\opencode",
+      "mercator": {
+        "init_seconds": 25.573193400050513,
+        "init_rc": 0,
+        "init_stderr": null,
+        "refresh_seconds": 7.17755759996362,
+        "refresh_rc": 0,
+        "refresh_stderr": null,
+        "stacks": [
+          "ts"
+        ],
+        "project_count": 1,
+        "projects": [
+          {
+            "id": "opencode",
+            "name": "opencode",
+            "stack": "ts",
+            "category": "app",
+            "systems": 20,
+            "contracts": 20
+          }
+        ],
+        "edge_count": 0,
+        "atlas_html_bytes": 890435,
+        "storage_bytes": 2632007,
+        "atlas_html_exists": true,
+        "extra_atlas_bytes": 0,
+        "notes": []
+      },
+      "storage_dir": "C:\\tmp\\bench-atlases\\opencode"
+    }
+  ]
+}

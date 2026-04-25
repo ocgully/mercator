@@ -198,25 +198,41 @@ def symbol(repo_root: Path, name: str,
            project_id: Optional[str] = None) -> dict:
     sys_doc = _load_systems(repo_root, project_id)
     stack = sys_doc.get("stack", "")
-    if stack != "rust":
+    proj = resolve_project(repo_root, project_id)
+    project_dir = (repo_root / proj["root"]).resolve()
+    if stack == "rust":
+        matches = rust_stack.find_symbol(project_dir, sys_doc, name, kinds)
+        source_tool = "rust_pub_scan (def-lookup)"
+        source_tool_note = (
+            "Definition lookup only — no references/callers. For call-site resolution "
+            "install rust-analyzer and use its LSP (not yet wired into this CLI)."
+        )
+    elif stack == "python":
+        from mercator.stacks import python as python_stack
+        matches = python_stack.find_symbol(project_dir, sys_doc, name, kinds)
+        source_tool = "python_ast_scan (def-lookup)"
+        source_tool_note = (
+            "Definition lookup only — no references/callers. Walks every .py file "
+            "owned by a system (top-level def/class/const + one level into class "
+            "bodies for methods). Methods are surfaced under their bare name, so "
+            "`symbol foo` may match both a top-level `foo()` and `Bar.foo()`; "
+            "disambiguate via the `system` and `file` fields on each match. "
+            "Underscore-prefixed names are included (Python convention, not "
+            "enforcement). For real call-site resolution use a language server."
+        )
+    else:
         return {
             "query": "symbol", "name": name, "stack": stack,
             "not_implemented": True,
             "note": f"Layer 3 symbol lookup not yet implemented for stack '{stack}'.",
         }
-    proj = resolve_project(repo_root, project_id)
-    project_dir = (repo_root / proj["root"]).resolve()
-    matches = rust_stack.find_symbol(project_dir, sys_doc, name, kinds)
     query_kind = kinds if isinstance(kinds, str) else ",".join(sorted(kinds))
     return {
         "schema_version": SCHEMA_VERSION,
         "layer": "symbols",
         "query": {"name": name, "kind": query_kind},
-        "source_tool": "rust_pub_scan (def-lookup)",
-        "source_tool_note": (
-            "Definition lookup only — no references/callers. For call-site resolution "
-            "install rust-analyzer and use its LSP (not yet wired into this CLI)."
-        ),
+        "source_tool": source_tool,
+        "source_tool_note": source_tool_note,
         "matches": matches,
         "match_count": len(matches),
     }

@@ -95,7 +95,98 @@
     document.head.appendChild(s);
   }
 
+  // ---------- Repo-wide search index ---------------------------------------
+  // Build a flat hit list once. Each hit: { type, name, project_id, project_name,
+  // path, snippet, href }. Search runs in JS over substring on `name` (or `key`
+  // for strings, `file` for assets).
+  const SEARCH_HITS = (() => {
+    const out = [];
+    for (const s of SUMM) {
+      const pid = s.id;
+      const pname = s.name || s.id;
+      const baseHref = `atlas/projects/${encodeURIComponent(pid)}.html`;
+      for (const sys of (s.systems || [])) {
+        out.push({
+          type: 'system',
+          name: sys.name || '',
+          project_id: pid,
+          project_name: pname,
+          path: sys.manifest_path || sys.scope_dir || '',
+          snippet: sys.scope_dir || '',
+          href: `${baseHref}#/systems/${encodeURIComponent(sys.name || '')}`,
+        });
+      }
+      for (const sym of (s.symbols || [])) {
+        out.push({
+          type: 'symbol',
+          name: sym.name || '',
+          project_id: pid,
+          project_name: pname,
+          path: (sym.file || '') + (sym.line ? ':' + sym.line : ''),
+          snippet: sym.signature || sym.kind || '',
+          href: `${baseHref}#/symbols`,  // q appended at click time
+          system: sym.system || '',
+          kind: sym.kind || '',
+        });
+      }
+      for (const a of (s.assets || [])) {
+        out.push({
+          type: 'asset',
+          name: a.file || '',  // assets match on file
+          project_id: pid,
+          project_name: pname,
+          path: a.file || '',
+          snippet: a.kind || '',
+          href: `${baseHref}#/assets`,
+          owning_system: a.owning_system || '',
+        });
+      }
+      for (const st of (s.strings || [])) {
+        out.push({
+          type: 'string',
+          name: st.key || '',  // strings match on key
+          project_id: pid,
+          project_name: pname,
+          path: st.file || '',
+          snippet: st.value || '',
+          href: `${baseHref}#/strings`,
+          owning_system: st.owning_system || '',
+        });
+      }
+    }
+    return out;
+  })();
+
+  // Aggregate over_cap warnings for the UI hint.
+  const OVER_CAP_PROJECTS = SUMM.filter(s => s.over_cap &&
+    (s.over_cap.symbols || s.over_cap.assets || s.over_cap.strings));
+
   app.innerHTML = `
+    <section class="panel">
+      <h2>Repo-wide search</h2>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;">
+        <input id="rs-q" class="filter" style="flex:1;min-width:280px"
+          placeholder="Search across all projects (system / symbol / asset / string key)…" />
+        <select id="rs-scope" class="filter">
+          <option value="all">all</option>
+          <option value="system">systems</option>
+          <option value="symbol">symbols</option>
+          <option value="asset">assets</option>
+          <option value="string">strings</option>
+        </select>
+        <select id="rs-proj" class="filter">
+          <option value="">any project</option>
+          ${SUMM.map(s => `<option value="${esc(s.id)}">${esc(s.name || s.id)}</option>`).join('')}
+        </select>
+      </div>
+      <div id="rs-hint" style="color:var(--muted);font-size:12px;margin-bottom:6px">
+        Press <code>/</code> to focus.
+        ${OVER_CAP_PROJECTS.length
+          ? ` Some projects exceed the 500-entity-per-category cap (${OVER_CAP_PROJECTS.map(p => esc(p.id)).join(', ')}); drill into those projects' atlases for full coverage.`
+          : ''}
+      </div>
+      <div id="rs-results" style="display:none"></div>
+    </section>
     <section class="panel">
       <h2>Repo overview</h2>
       <div class="counts">
@@ -232,6 +323,85 @@ mercator check                        # CI gate across ALL projects</pre>
   fStack.addEventListener('change', render);
   fCat.addEventListener('change', render);
   render();
+
+  // ---------- Repo-wide search wiring --------------------------------------
+  const rsQ = document.getElementById('rs-q');
+  const rsScope = document.getElementById('rs-scope');
+  const rsProj = document.getElementById('rs-proj');
+  const rsResults = document.getElementById('rs-results');
+  const RS_CAP = 200;
+  const TYPE_LABEL = { system: 'system', symbol: 'symbol', asset: 'asset', string: 'string' };
+
+  function withQuery(href, type, q) {
+    // For symbol/asset/string scopes, append ?q=<term> to the hash so the
+    // per-project page can prefill its filter.
+    if (!q) return href;
+    if (type === 'system') return href;  // already deep-linked to the system
+    const sep = href.includes('?') ? '&' : '?';
+    return href + sep + 'q=' + encodeURIComponent(q);
+  }
+
+  function renderSearch() {
+    const q = (rsQ.value || '').trim();
+    if (!q) {
+      rsResults.style.display = 'none';
+      rsResults.innerHTML = '';
+      return;
+    }
+    const ql = q.toLowerCase();
+    const scope = rsScope.value;
+    const proj = rsProj.value;
+    const matches = [];
+    for (const h of SEARCH_HITS) {
+      if (scope !== 'all' && h.type !== scope) continue;
+      if (proj && h.project_id !== proj) continue;
+      if (!(h.name || '').toLowerCase().includes(ql)) continue;
+      matches.push(h);
+      if (matches.length >= RS_CAP * 4) break;  // early bail; still show "of N+"
+    }
+    const total = matches.length;
+    const shown = matches.slice(0, RS_CAP);
+    rsResults.style.display = 'block';
+    if (total === 0) {
+      rsResults.innerHTML = `<div class="empty">No matches across ${SUMM.length} project${SUMM.length===1?'':'s'}.</div>`;
+      return;
+    }
+    const rows = shown.map(h => {
+      const href = withQuery(h.href, h.type, q);
+      const projHref = `atlas/projects/${encodeURIComponent(h.project_id)}.html`;
+      return `<tr>
+        <td><span class="pill">${esc(TYPE_LABEL[h.type] || h.type)}</span></td>
+        <td class="mono"><a href="${esc(href)}"><strong>${esc(h.name || '')}</strong></a></td>
+        <td><a href="${esc(projHref)}">${esc(h.project_name)}</a></td>
+        <td class="mono">${esc(h.path || '')}</td>
+        <td class="mono">${esc(h.snippet || '')}</td>
+      </tr>`;
+    }).join('');
+    const cappedNote = total > RS_CAP
+      ? `<div style="color:var(--muted);font-size:12px;margin-top:6px">Showing ${RS_CAP} of ${total}${total >= RS_CAP * 4 ? '+' : ''} matches. Refine the query or scope.</div>`
+      : `<div style="color:var(--muted);font-size:12px;margin-top:6px">${total} match${total===1?'':'es'}.</div>`;
+    rsResults.innerHTML = `
+      <table>
+        <thead><tr><th>Type</th><th>Name</th><th>Project</th><th>Path</th><th>Snippet</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+      ${cappedNote}
+    `;
+  }
+  rsQ.addEventListener('input', renderSearch);
+  rsScope.addEventListener('change', renderSearch);
+  rsProj.addEventListener('change', renderSearch);
+
+  // / hotkey — focus the repo-wide search input.
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== '/') return;
+    const ae = document.activeElement;
+    if (ae === rsQ) return;
+    if (ae && ['INPUT','TEXTAREA','SELECT'].includes(ae.tagName)) return;
+    e.preventDefault();
+    rsQ.focus();
+    rsQ.select();
+  });
 
   // Render cross-project graph after the cards are in place so it sits
   // alongside the project list.

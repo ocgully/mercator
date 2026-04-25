@@ -131,6 +131,10 @@ def render_repo_index(
     Each card links to `atlas/projects/<id>.html` (relative path, written
     by `mercator.render.write_atlas`).
     """
+    # Per-category caps for embedded search payload — keeps repo-index size sane on
+    # large monorepos. UI hints "drill into per-project page" when over_cap is true.
+    _CAP = 500
+
     summaries = []
     for b in bundles:
         proj = b["project"]
@@ -138,6 +142,59 @@ def render_repo_index(
         systems = sys_doc.get("systems") or []
         contracts = b.get("contracts") or {}
         violations = b.get("violations") or []
+        assets_doc = b.get("assets") or {}
+        strings_doc = b.get("strings") or {}
+        assets_list = (assets_doc or {}).get("assets") or []
+        strings_list = (strings_doc or {}).get("strings") or []
+
+        # Compact systems list for search (name + path hints).
+        systems_search = [
+            {
+                "name": s.get("name"),
+                "scope_dir": s.get("scope_dir"),
+                "manifest_path": s.get("manifest_path"),
+            }
+            for s in systems if s.get("name")
+        ]
+
+        # Flatten contracts into a single symbols list, then cap.
+        all_symbols = []
+        for sys_name, contract in contracts.items():
+            items = (contract or {}).get("items") or []
+            for it in items:
+                all_symbols.append({
+                    "kind": it.get("kind"),
+                    "name": it.get("name"),
+                    "file": it.get("path") or it.get("file"),
+                    "line": it.get("line"),
+                    "signature": it.get("signature") or it.get("sig"),
+                    "system": sys_name,
+                })
+        symbols_total = len(all_symbols)
+        symbols_search = all_symbols[:_CAP]
+
+        assets_total = len(assets_list)
+        assets_search = [
+            {
+                "kind": a.get("kind"),
+                "file": a.get("file"),
+                "owning_system": a.get("owning_system"),
+                "bytes": a.get("bytes"),
+            }
+            for a in assets_list[:_CAP]
+        ]
+
+        strings_total = len(strings_list)
+        strings_search = [
+            {
+                "key": s.get("key"),
+                "value": s.get("value"),
+                "owning_system": s.get("owning_system"),
+                "file": s.get("file"),
+            }
+            for s in strings_list[:_CAP]
+        ]
+
         summaries.append({
             "id": proj["id"],
             "name": proj.get("name") or proj["id"],
@@ -150,6 +207,19 @@ def render_repo_index(
             "violation_count": len(violations),
             "error_violations": sum(1 for v in violations if v.get("severity") == "error"),
             "href": f"atlas/projects/{proj['id']}.html",
+            # Search payload (capped per category).
+            "systems": systems_search,
+            "symbols": symbols_search,
+            "assets": assets_search,
+            "strings": strings_search,
+            "symbols_total": symbols_total,
+            "assets_total": assets_total,
+            "strings_total": strings_total,
+            "over_cap": {
+                "symbols": symbols_total > _CAP,
+                "assets": assets_total > _CAP,
+                "strings": strings_total > _CAP,
+            },
         })
     payload = {
         "mercator_version": mercator_version,

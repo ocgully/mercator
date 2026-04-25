@@ -1,0 +1,14 @@
+=== Machine ===
+OS:         Microsoft Windows 11 Home (10.0.26200)
+System:     Micro-Star International MS-7B86
+CPU:        AMD Ryzen 7 2700X (8 cores / 16 threads, Zen+ 12nm, 2018)
+RAM:        32 GB
+
+=== Storage (5 disks) ===
+Primary work / repo disk: Samsung SSD 980 PRO with Heatsink 2TB (NVMe PCIe 4.0)
+Secondary SSD:            Samsung SSD 850 EVO 500GB (SATA)
+HDDs:                     SAMSUNG HD502HJ x2 (466 GB SATA), WDC WD30EZRZ 2.8TB (SATA)
+
+=== Tooling ===
+Python:     3.12.10
+git:        2.37.3 (Git for Windows)

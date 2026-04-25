@@ -763,24 +763,64 @@ mercator query strings --system &lt;system&gt;</pre>
 
   // ---------- router -------------------------------------------------------
 
+  // Parse `#/route?key=value&...` — splits the querystring off the last
+  // hash segment so e.g. `#/symbols?q=foo` yields parts=['symbols'] and
+  // params={q:'foo'}. Used by repo-wide search to deep-link with a prefilter.
+  function parseHash() {
+    const raw = location.hash || '#/overview';
+    const noHash = raw.replace(/^#\//, '');
+    const qIdx = noHash.indexOf('?');
+    const path = qIdx >= 0 ? noHash.slice(0, qIdx) : noHash;
+    const query = qIdx >= 0 ? noHash.slice(qIdx + 1) : '';
+    const params = {};
+    if (query) {
+      for (const kv of query.split('&')) {
+        if (!kv) continue;
+        const eq = kv.indexOf('=');
+        const k = eq >= 0 ? kv.slice(0, eq) : kv;
+        const v = eq >= 0 ? kv.slice(eq + 1) : '';
+        try { params[decodeURIComponent(k)] = decodeURIComponent(v.replace(/\+/g, ' ')); }
+        catch { params[k] = v; }
+      }
+    }
+    return { parts: path.split('/'), params };
+  }
+
+  // Prefill a route's filter input with the `?q=...` hash param after the
+  // route renders. Each route uses a different filter element id.
+  function applyHashQuery(route, params) {
+    if (!params || !params.q) return;
+    const FILTER_BY_ROUTE = {
+      systems: 'sys-filter',
+      symbols: 'sym-filter',
+      assets: 'a-file',
+      strings: 's-key',
+    };
+    const id = FILTER_BY_ROUTE[route];
+    if (!id) return;
+    setTimeout(() => {
+      const f = document.getElementById(id);
+      if (f) { f.value = params.q; f.dispatchEvent(new Event('input')); }
+    }, 30);
+  }
+
   function router() {
-    const hash = location.hash || '#/overview';
-    const parts = hash.replace(/^#\//, '').split('/');
+    const { parts, params } = parseHash();
     for (const a of tabs.querySelectorAll('a')) a.classList.remove('active');
     const route = parts[0] || 'overview';
     const tab = tabs.querySelector(`a[href="#/${route}"]`);
     if (tab) tab.classList.add('active');
     switch (route) {
-      case '': case 'overview': return routeOverview();
+      case '': case 'overview': routeOverview(); break;
       case 'systems':
-        if (parts[1]) return routeSystem(decodeURIComponent(parts[1]));
-        return routeSystems();
-      case 'symbols': return routeSymbols();
-      case 'boundaries': return routeBoundaries();
-      case 'assets': return routeAssets();
-      case 'strings': return routeStrings();
-      case 'query': return routeQuery();
-      default: return routeOverview();
+        if (parts[1]) { routeSystem(decodeURIComponent(parts[1])); break; }
+        routeSystems(); applyHashQuery('systems', params); break;
+      case 'symbols': routeSymbols(); applyHashQuery('symbols', params); break;
+      case 'boundaries': routeBoundaries(); break;
+      case 'assets': routeAssets(); applyHashQuery('assets', params); break;
+      case 'strings': routeStrings(); applyHashQuery('strings', params); break;
+      case 'query': routeQuery(); break;
+      default: routeOverview();
     }
   }
   window.addEventListener('hashchange', router);

@@ -53,7 +53,7 @@ def layer_support(stack: str) -> dict:
         "unity":  {"systems": "implemented", "contracts": "stub",        "symbols": "stub",                             "assets": "implemented (Assets/+Packages/ walk + PO/CSV strings)"},
         "dart":   {"systems": "implemented", "contracts": "stub",        "symbols": "stub",                             "assets": "implemented (pubspec flutter.assets + ARB strings)"},
         "ts":     {"systems": "implemented", "contracts": "implemented (regex export-scan)", "symbols": "stub",            "assets": "stub"},
-        "python": {"systems": "implemented", "contracts": "implemented (AST public-surface)", "symbols": "stub", "assets": "stub"},
+        "python": {"systems": "implemented", "contracts": "implemented (AST public-surface)", "symbols": "implemented (AST def-lookup)", "assets": "stub"},
         "go":     {"systems": "stub",        "contracts": "stub",        "symbols": "stub",                             "assets": "stub"},
     }
     return supported.get(stack, {"systems": "unsupported", "contracts": "unsupported", "symbols": "unsupported", "assets": "unsupported"})
