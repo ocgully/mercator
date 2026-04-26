@@ -1,4 +1,4 @@
-"""Allow `python -m mercator` invocation."""
+"""Allow `python -m codeatlas` invocation."""
 import sys
 from codeatlas.cli import main
 

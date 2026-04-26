@@ -1,4 +1,4 @@
-"""Tests for mercator.diff — git-ref structural diff (project-aware)."""
+"""Tests for codeatlas.diff — git-ref structural diff (project-aware)."""
 from __future__ import annotations
 
 import json
@@ -267,7 +267,7 @@ def test_compute_diff_skips_unchanged_per_project_entries(tmp_path: Path) -> Non
 def test_compute_diff_cross_boundary_legacy_to_nested(tmp_path: Path) -> None:
     repo = tmp_path / "r"
     _init_repo(repo)
-    # Ref A: legacy flat `.mercator/systems.json`.
+    # Ref A: legacy flat `.mercator/systems.json` (preserved-fallback path).
     _write(repo / ".mercator" / "systems.json",
            _systems_doc({"name": "old", "dependencies": []}))
     sha_a = _commit_all(repo, "ref-A")

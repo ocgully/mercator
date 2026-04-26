@@ -1,6 +1,6 @@
-# Mercator structural CI gate.
+# CodeAtlas structural CI gate.
 #
-# Runs `mercator check` on PRs and pushes to main, failing the build on any
+# Runs `codeatlas check` on PRs and pushes to main, failing the build on any
 # error-severity DMZ violation across all detected projects. On failure,
 # uploads the JSON violations report as an artifact and (optionally) posts
 # a PR comment summary.
@@ -10,7 +10,7 @@
 # call and the step no-ops. Drop the `permissions:` block + that step if
 # your org disallows bot comments.
 
-name: mercator check
+name: codeatlas check
 
 on:
   pull_request:
@@ -33,36 +33,36 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install Mercator
-        run: pip install "mercator>=0.5,<1"
+      - name: Install CodeAtlas
+        run: pip install "codeatlas>=0.6,<1"
 
       # Cache is an OPTIMISATION — the workflow MUST work without it.
-      - name: Cache .mercator/
+      - name: Cache .codeatlas/
         uses: actions/cache@v4
         with:
-          path: .mercator
-          key: mercator-${{ hashFiles('**/Cargo.toml', '**/package.json', '**/pyproject.toml', '**/pubspec.yaml', '**/go.mod') }}-v0.5
+          path: .codeatlas
+          key: codeatlas-${{ hashFiles('**/Cargo.toml', '**/package.json', '**/pyproject.toml', '**/pubspec.yaml', '**/go.mod') }}-v0.6
 
-      - name: Initialise or refresh Mercator
+      - name: Initialise or refresh CodeAtlas
         run: |
-          if [ -f .mercator/projects.json ]; then
-            mercator refresh
+          if [ -f .codeatlas/projects.json ]; then
+            codeatlas refresh
           else
-            mercator init
+            codeatlas init
           fi
 
-      - name: Run mercator check (gate)
-        run: mercator check
+      - name: Run codeatlas check (gate)
+        run: codeatlas check
 
       - name: Collect violations JSON
         if: failure()
-        run: mercator check --format json > violations.json || true
+        run: codeatlas check --format json > violations.json || true
 
       - name: Upload violations artifact
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: mercator-violations
+          name: codeatlas-violations
           path: violations.json
           if-no-files-found: ignore
 
@@ -72,7 +72,7 @@ jobs:
         with:
           script: |
             const fs = require('fs');
-            let body = '### mercator check failed\n\nError-severity DMZ violations detected. See the `mercator-violations` artifact for full JSON.';
+            let body = '### codeatlas check failed\n\nError-severity DMZ violations detected. See the `codeatlas-violations` artifact for full JSON.';
             try {
               const data = JSON.parse(fs.readFileSync('violations.json', 'utf8'));
               const v = Array.isArray(data) ? data : (data.violations || []);

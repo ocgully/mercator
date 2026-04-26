@@ -1,4 +1,4 @@
-"""Tests for mercator.repo_edges — implicit cross-project edge resolution."""
+"""Tests for codeatlas.repo_edges — implicit cross-project edge resolution."""
 from __future__ import annotations
 
 import json
@@ -42,7 +42,7 @@ def _pkg_json(name: str, deps: Optional[dict] = None) -> str:
 
 
 def _setup_storage(tmp_path: Path, storage_dir: Path) -> None:
-    """Redirect mercator storage into tmp dir and run project detection."""
+    """Redirect codeatlas storage into tmp dir and run project detection."""
     paths.set_storage_override(storage_dir)
     write_projects(tmp_path, storage_dir)
 

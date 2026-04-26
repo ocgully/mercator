@@ -1,12 +1,12 @@
 """Query surface for agents — project-aware.
 
 Every function returns a small, typed JSON slice. With nested storage
-(`.mercator/projects/<id>/...`), a query needs to know which project to
+(`.codeatlas/projects/<id>/...`), a query needs to know which project to
 read. The default rule is gentle: if there's exactly one project in the
 repo, use it; if there are multiple, the caller must pass `project_id`
 or get an error listing the choices.
 
-Agents should prefer these JSON queries over reading `.mercator/**/*.md`:
+Agents should prefer these JSON queries over reading `.codeatlas/**/*.md`:
 the JSON is smaller, typed, and scoped to the question.
 """
 from __future__ import annotations
@@ -26,7 +26,7 @@ from codeatlas.stacks import rust as rust_stack
 
 def resolve_project(repo_root: Path, project_id: Optional[str] = None) -> dict:
     """Pick the project this query targets. Raises ValueError if ambiguous."""
-    repo_storage = paths.mercator_dir(repo_root)
+    repo_storage = paths.codeatlas_dir(repo_root)
     projects_doc = projects_mod.load_projects(repo_storage)
     if projects_doc is None:
         # No projects.json yet — try detecting on the fly so unrefreshed
@@ -52,7 +52,7 @@ def resolve_project(repo_root: Path, project_id: Optional[str] = None) -> dict:
 
 def _project_storage(repo_root: Path, project_id: Optional[str]) -> tuple[Path, dict]:
     proj = resolve_project(repo_root, project_id)
-    repo_storage = paths.mercator_dir(repo_root)
+    repo_storage = paths.codeatlas_dir(repo_root)
     return paths.project_storage_dir(repo_storage, proj["id"]), proj
 
 
@@ -81,7 +81,7 @@ def _load_contract(repo_root: Path, system_name: str,
 
 def projects(repo_root: Path) -> dict:
     """Return the repo-level projects manifest."""
-    repo_storage = paths.mercator_dir(repo_root)
+    repo_storage = paths.codeatlas_dir(repo_root)
     doc = projects_mod.load_projects(repo_storage)
     if doc is None:
         doc = projects_mod.detect_projects(repo_root)
@@ -91,7 +91,7 @@ def projects(repo_root: Path) -> dict:
 def repo_edges(repo_root: Path) -> dict:
     """Return implicit cross-project edges (computed on-demand if missing)."""
     from codeatlas import repo_edges as repo_edges_mod
-    repo_storage = paths.mercator_dir(repo_root)
+    repo_storage = paths.codeatlas_dir(repo_root)
     doc = repo_edges_mod.load_edges(repo_storage)
     if doc is None:
         doc = repo_edges_mod.compute_edges(repo_root)
@@ -101,7 +101,7 @@ def repo_edges(repo_root: Path) -> dict:
 def coverage(repo_root: Path) -> dict:
     """Return the source-file coverage report (computed on-demand if missing)."""
     from codeatlas import coverage as coverage_mod
-    repo_storage = paths.mercator_dir(repo_root)
+    repo_storage = paths.codeatlas_dir(repo_root)
     doc = coverage_mod.load_coverage(repo_storage)
     if doc is None:
         projects_doc = projects_mod.load_projects(repo_storage) or projects_mod.detect_projects(repo_root)
@@ -113,7 +113,7 @@ def repo_boundaries(repo_root: Path) -> dict:
     """Return repo-level (cross-project) DMZ rules + per-rule pass/fail."""
     from codeatlas import repo_boundaries as repo_bnd_mod
     from codeatlas import repo_edges as repo_edges_mod
-    repo_storage = paths.mercator_dir(repo_root)
+    repo_storage = paths.codeatlas_dir(repo_root)
     projects_doc = projects_mod.load_projects(repo_storage)
     if projects_doc is None:
         projects_doc = projects_mod.detect_projects(repo_root)
@@ -143,7 +143,7 @@ def repo_violations(repo_root: Path) -> dict:
     """Return cross-project violations only (the failing rules)."""
     from codeatlas import repo_boundaries as repo_bnd_mod
     from codeatlas import repo_edges as repo_edges_mod
-    repo_storage = paths.mercator_dir(repo_root)
+    repo_storage = paths.codeatlas_dir(repo_root)
     projects_doc = projects_mod.load_projects(repo_storage)
     if projects_doc is None:
         projects_doc = projects_mod.detect_projects(repo_root)
@@ -257,7 +257,7 @@ def touches(repo_root: Path, file_path: str,
     all projects and return the first match (project + system). With a
     project_id, we constrain to that project's systems.
     """
-    repo_storage = paths.mercator_dir(repo_root)
+    repo_storage = paths.codeatlas_dir(repo_root)
     projects_doc = projects_mod.load_projects(repo_storage)
     if projects_doc is None:
         projects_doc = projects_mod.detect_projects(repo_root)

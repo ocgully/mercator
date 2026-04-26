@@ -1,4 +1,4 @@
-"""Render `.mercator/graph.md` — a human-viewable visual of systems + boundaries.
+"""Render `.codeatlas/graph.md` — a human-viewable visual of systems + boundaries.
 
 Output uses mermaid.js — renders natively in GitHub, VS Code, Obsidian, most
 markdown tools. Zero install, deterministic, diff-clean. Agents may also
@@ -71,7 +71,7 @@ def render(systems_doc: dict, boundaries_doc: dict) -> str:
                     forbidden_pairs.add((a, b))
 
     lines: List[str] = [
-        "# Mercator — Visual View",
+        "# CodeAtlas — Visual View",
         "",
         f"**Stack**: {stack}",
         f"**Systems**: {len(systems)}",
@@ -79,7 +79,7 @@ def render(systems_doc: dict, boundaries_doc: dict) -> str:
         f"**DMZ rules**: {len(rules)}",
         f"**Violations**: {len(violations)}" + ("  **⚠**" if violations else ""),
         "",
-        "_This file regenerates on every `codeatlas refresh` or `mercator render`. Do not edit by hand — edit `.mercator/boundaries.json` and rerun. Renders natively in GitHub, VS Code, Obsidian._",
+        "_This file regenerates on every `codeatlas refresh` or `codeatlas render`. Do not edit by hand — edit `.codeatlas/boundaries.json` and rerun. Renders natively in GitHub, VS Code, Obsidian._",
         "",
     ]
 
@@ -96,7 +96,7 @@ def render(systems_doc: dict, boundaries_doc: dict) -> str:
     # ------------------------- 2. DMZ / boundaries -------------------------
     if rules:
         lines += ["## 2. DMZ rules (what must never be)", "",
-                  "Red dashed edges are **forbidden** by `.mercator/boundaries.json`. Solid red edges (if any) are live violations.",
+                  "Red dashed edges are **forbidden** by `.codeatlas/boundaries.json`. Solid red edges (if any) are live violations.",
                   ""]
         if len(systems) > MERMAID_NODE_LIMIT:
             lines += [f"_Diagram suppressed ({len(systems)} systems > {MERMAID_NODE_LIMIT})._", ""]
@@ -104,7 +104,7 @@ def render(systems_doc: dict, boundaries_doc: dict) -> str:
             lines += _mermaid_boundary_graph(systems, edges, forbidden_pairs, violation_edges, layers)
     else:
         lines += ["## 2. DMZ rules", "",
-                  "No `.mercator/boundaries.json` configured. Run `codeatlas boundaries init` to scaffold one.",
+                  "No `.codeatlas/boundaries.json` configured. Run `codeatlas boundaries init` to scaffold one.",
                   ""]
 
     # ------------------------- 3. Violations detail ------------------------
@@ -125,8 +125,8 @@ def render(systems_doc: dict, boundaries_doc: dict) -> str:
     lines += [
         "## How to edit",
         "",
-        "- **Add / edit DMZ rules**: open `.mercator/boundaries.json` (scaffold with `codeatlas boundaries init`).",
-        "- **Re-render this file**: `mercator render` (also runs automatically on every `codeatlas refresh`).",
+        "- **Add / edit DMZ rules**: open `.codeatlas/boundaries.json` (scaffold with `codeatlas boundaries init`).",
+        "- **Re-render this file**: `codeatlas render` (also runs automatically on every `codeatlas refresh`).",
         "- **CI gate**: `codeatlas check` exits 1 if any `error`-severity rule is violated.",
         "",
     ]

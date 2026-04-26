@@ -1,4 +1,4 @@
-"""Tests for mercator.repo_boundaries — repo-level (cross-project) DMZ rules."""
+"""Tests for codeatlas.repo_boundaries — repo-level (cross-project) DMZ rules."""
 from __future__ import annotations
 
 import json

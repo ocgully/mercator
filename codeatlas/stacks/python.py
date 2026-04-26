@@ -4,9 +4,9 @@ Granularity choice: a *system* in Python is a **sub-package** — a directory
 that contains `__init__.py`. The top-level distribution (identified by
 `pyproject.toml` at the project root) is also a system, matching what
 `pip install` ships. Sub-package granularity is where the interesting
-dependency structure lives: for Mercator itself we get `mercator`,
-`mercator.render`, `mercator.stacks` as three systems with real edges between
-them. For a library like Django we'd get dozens.
+dependency structure lives: for CodeAtlas itself we get `codeatlas`,
+`codeatlas.render`, `codeatlas.stacks` as three systems with real edges
+between them. For a library like Django we'd get dozens.
 
 Layer 1 dependencies come from AST-parsed imports inside each package's
 source files. Only intra-project edges are emitted — imports of stdlib /
@@ -42,7 +42,7 @@ SKIP_DIRS = {
     ".tox", ".nox", ".pytest_cache", ".mypy_cache", ".ruff_cache",
     "node_modules",
     "site-packages",
-    ".mercator", ".codemap",
+    ".codeatlas", ".mercator", ".codemap",
     ".egg-info",
     "htmlcov", ".coverage",
 }

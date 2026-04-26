@@ -5,11 +5,10 @@ existing `.codeatlas/` (post-init), `.mercator/` (legacy), `.codemap/`
 (double-legacy), or a recognised stack manifest (pre-init). Whichever it
 finds first defines the project root.
 
-**Backwards-compatibility**: during the `mercator → codeatlas` rename cycle,
-projects that still have a `.mercator/` directory (or even `.codemap/`) are
-detected and used as the storage root. A one-shot `codeatlas
-migrate-from-mercator` command renames the dir to `.codeatlas/` and rewrites
-internal references.
+**Backwards-compatibility**: projects that still have a `.mercator/` directory
+(or even `.codemap/`) from earlier releases are detected and used as the
+storage root. A one-shot `codeatlas migrate-from-mercator` command renames
+the dir to `.codeatlas/` and rewrites internal references.
 """
 from __future__ import annotations
 

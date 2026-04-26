@@ -1,21 +1,25 @@
 """Structural diff between two git refs — project-aware.
 
-Given two refs, read each ref's `.mercator/projects.json` and per-project
-`systems.json` + `contracts/*.json` via `git show <ref>:<path>` and emit a
-small, typed delta describing:
+Given two refs, read each ref's `.codeatlas/projects.json` (or the legacy
+`.mercator/` / `.codemap/` equivalents) and per-project `systems.json` +
+`contracts/*.json` via `git show <ref>:<path>` and emit a small, typed
+delta describing:
 
 - Projects added / removed (by id) at the repo level.
 - Per-project: systems added/removed, dep edges added/removed,
   Layer-2 contract item additions/removals.
 
-Designed to work on any commit that has `.mercator/` (or the legacy
-`.codemap/`) committed, including refs that predate the v0.5.0 nested
-layout. Layout resolution per ref:
+Designed to work on any commit that has `.codeatlas/`, `.mercator/`, or
+`.codemap/` committed, including refs that predate the v0.5.0 nested
+layout. Layout resolution per ref (first match wins):
 
-    1. `.mercator/projects.json` exists  → multi/single project, nested layout
-    2. `.mercator/systems.json` exists   → legacy single-project flat layout
-    3. `.codemap/systems.json` exists    → pre-rename single-project flat layout
-    4. nothing                           → empty ref (treat as no projects)
+    1. `.codeatlas/projects.json` exists  → nested layout, current name
+    2. `.mercator/projects.json` exists   → nested layout, mid-life name
+    3. `.codemap/projects.json` exists    → nested layout, original name
+    4. `.codeatlas/systems.json` exists   → flat layout, current name
+    5. `.mercator/systems.json` exists    → flat layout, mid-life name
+    6. `.codemap/systems.json` exists     → flat layout, original name
+    7. nothing                            → empty ref (treat as no projects)
 
 A diff that straddles the v0.4.x → v0.5.0 boundary will see one synthetic
 "(legacy)" project on the older side and the real project list on the newer
@@ -32,14 +36,20 @@ from pathlib import Path
 from typing import Iterable, List, Optional, Set, Tuple
 
 
-# Layout paths (current).
+# Storage-dir names in priority order: current, mid-life legacy, original
+# legacy. Each is tried in turn when locating a ref's structural data.
+STORAGE_DIRS = (".codeatlas", ".mercator", ".codemap")
+
+# Back-compat constants — keep PROJECTS_PATH / PROJECT_*_TPL pointing at
+# `.mercator/...` for now so any external callers / tests that import them
+# still resolve. Internally we iterate STORAGE_DIRS.
 PROJECTS_PATH = ".mercator/projects.json"
 PROJECT_SYSTEMS_TPL = ".mercator/projects/{id}/systems.json"
 PROJECT_CONTRACT_TPL = ".mercator/projects/{id}/contracts/{system}.json"
 
 # Legacy flat-layout paths (v0.4.x and earlier).
-LEGACY_SYSTEMS_PATHS = (".mercator/systems.json", ".codemap/systems.json")
-LEGACY_CONTRACT_DIRS = (".mercator/contracts", ".codemap/contracts")
+LEGACY_SYSTEMS_PATHS = tuple(f"{d}/systems.json" for d in STORAGE_DIRS)
+LEGACY_CONTRACT_DIRS = tuple(f"{d}/contracts" for d in STORAGE_DIRS)
 
 # Sentinel project id used when a ref is on the legacy flat layout.
 LEGACY_PROJECT_ID = "(legacy)"
@@ -84,11 +94,13 @@ def _load_ref_state(project_root: Path, ref: str) -> dict:
 
         { "<project_id>": { "systems": <systems_doc>, "contracts": {<sys>: <doc>} } }
 
-    Empty dict if the ref has no mercator data at all.
+    Empty dict if the ref has no codeatlas data at all.
     """
-    # 1. Try nested (v0.5+) layout.
-    raw = _show(project_root, ref, PROJECTS_PATH)
-    if raw is not None:
+    # 1. Try the nested (v0.5+) layout under each known storage-dir name.
+    for storage in STORAGE_DIRS:
+        raw = _show(project_root, ref, f"{storage}/projects.json")
+        if raw is None:
+            continue
         try:
             doc = json.loads(raw)
         except json.JSONDecodeError:
@@ -98,19 +110,20 @@ def _load_ref_state(project_root: Path, ref: str) -> dict:
             pid = proj.get("id")
             if not pid:
                 continue
-            out[pid] = _load_project_at_ref(project_root, ref, pid)
+            out[pid] = _load_project_at_ref(project_root, ref, pid, storage=storage)
         return out
 
     # 2. Fall back to legacy flat layout — surface as one synthetic project.
-    for p in LEGACY_SYSTEMS_PATHS:
-        raw = _show(project_root, ref, p)
+    for storage in STORAGE_DIRS:
+        sys_path = f"{storage}/systems.json"
+        raw = _show(project_root, ref, sys_path)
         if raw is None:
             continue
         try:
             sys_doc = json.loads(raw)
         except json.JSONDecodeError:
             sys_doc = {"systems": []}
-        contract_dir = LEGACY_CONTRACT_DIRS[0] if p.startswith(".mercator") else LEGACY_CONTRACT_DIRS[1]
+        contract_dir = f"{storage}/contracts"
         return {LEGACY_PROJECT_ID: {
             "systems": sys_doc,
             "contracts": _load_legacy_contracts(project_root, ref, contract_dir, sys_doc),
@@ -119,8 +132,9 @@ def _load_ref_state(project_root: Path, ref: str) -> dict:
     return {}
 
 
-def _load_project_at_ref(project_root: Path, ref: str, pid: str) -> dict:
-    sys_path = PROJECT_SYSTEMS_TPL.format(id=pid)
+def _load_project_at_ref(project_root: Path, ref: str, pid: str, *,
+                         storage: str = ".codeatlas") -> dict:
+    sys_path = f"{storage}/projects/{pid}/systems.json"
     raw = _show(project_root, ref, sys_path)
     if raw is None:
         return {"systems": {"systems": []}, "contracts": {}}
@@ -136,7 +150,7 @@ def _load_project_at_ref(project_root: Path, ref: str, pid: str) -> dict:
         # System names with `/` (scoped npm packages, ts refs) are stored as
         # `__`-sanitised filenames — match the refresh writer.
         safe = name.replace("/", "__").replace("\\", "__")
-        c_path = PROJECT_CONTRACT_TPL.format(id=pid, system=safe)
+        c_path = f"{storage}/projects/{pid}/contracts/{safe}.json"
         c_raw = _show(project_root, ref, c_path)
         if c_raw is None:
             continue

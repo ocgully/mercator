@@ -1,10 +1,10 @@
 """Repo-level (cross-project) DMZ rules.
 
 Per-project boundaries (the ones declared under
-`.mercator/projects/<id>/boundaries.json`) constrain edges *within* a
+`.codeatlas/projects/<id>/boundaries.json`) constrain edges *within* a
 project. Repo-level boundaries — declared in
-`.mercator/repo-boundaries.json` — constrain edges *between* projects.
-They evaluate against `.mercator/repo-edges.json` (the implicit
+`.codeatlas/repo-boundaries.json` — constrain edges *between* projects.
+They evaluate against `.codeatlas/repo-edges.json` (the implicit
 cross-project edge graph).
 
 Schema:
@@ -62,7 +62,7 @@ SEVERITIES = ("info", "warning", "error")
 # ---------------------------------------------------------------------------
 
 def load(repo_storage: Path) -> dict:
-    """Load `.mercator/repo-boundaries.json`. Returns `{}` if absent.
+    """Load `.codeatlas/repo-boundaries.json`. Returns `{}` if absent.
 
     Raises ValueError on malformed content.
     """
@@ -276,7 +276,7 @@ def has_blocking_violations(violations: List[dict]) -> bool:
 SCAFFOLD_JSON = """{
   "schema_version": "1",
 
-  "_doc": "Cross-project DMZ rules. Constrains edges BETWEEN projects in this monorepo. Per-project rules (within a single project's system graph) live under `.mercator/projects/<id>/boundaries.json` instead.",
+  "_doc": "Cross-project DMZ rules. Constrains edges BETWEEN projects in this monorepo. Per-project rules (within a single project's system graph) live under `.codeatlas/projects/<id>/boundaries.json` instead.",
 
   "categories": {
     "_doc": "Optional aliases that combine detected categories. Selectors resolve in this order: exact project id > category alias > detected category > tag > id glob.",

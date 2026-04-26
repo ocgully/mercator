@@ -20,7 +20,7 @@ Stack-aware matching:
     go      — module path last segment vs `go.mod` modules; coarse, but
               good enough as a heuristic.
 
-Output: `.mercator/repo-edges.json`:
+Output: `.codeatlas/repo-edges.json`:
 
     {
       "schema_version": "1",
@@ -226,7 +226,7 @@ _CONSUMERS = {
 
 def compute_edges(repo_root: Path) -> dict:
     """Compute repo-edges.json — implicit cross-project edges."""
-    repo_storage = paths.mercator_dir(repo_root)
+    repo_storage = paths.codeatlas_dir(repo_root)
     from codeatlas import projects as projects_mod
     projects_doc = projects_mod.load_projects(repo_storage)
     if projects_doc is None:
@@ -291,7 +291,7 @@ def compute_edges(repo_root: Path) -> dict:
         "edge_count": len(edges),
         "project_names": project_names,
         "edges": edges,
-        "source_tool": "mercator_repo_edges",
+        "source_tool": "codeatlas_repo_edges",
         "source_tool_note": (
             "Implicit cross-project edges inferred by matching each project's "
             "external dependency names against other projects' published "
@@ -311,7 +311,7 @@ def _edge_kind(stack: str) -> str:
 
 
 def write_edges(repo_root: Path) -> Path:
-    repo_storage = paths.ensure_mercator_dir(repo_root)
+    repo_storage = paths.ensure_codeatlas_dir(repo_root)
     doc = compute_edges(repo_root)
     out = repo_storage / "repo-edges.json"
     out.write_text(json.dumps(doc, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")

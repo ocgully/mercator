@@ -1,4 +1,4 @@
-"""Tests for mercator.stacks.python — Layer 1 (packages) + Layer 2 (contract)."""
+"""Tests for codeatlas.stacks.python — Layer 1 (packages) + Layer 2 (contract)."""
 from __future__ import annotations
 
 from pathlib import Path

@@ -1,7 +1,7 @@
-"""Render `.mercator/boundaries.md` — human-readable DMZ rule listing.
+"""Render `.codeatlas/boundaries.md` — human-readable DMZ rule listing.
 
 Per-rule pass/fail + resolved system sets. Intended for humans reviewing the
-contract; the authoritative source is `.mercator/boundaries.json`.
+contract; the authoritative source is `.codeatlas/boundaries.json`.
 """
 from __future__ import annotations
 
@@ -12,12 +12,12 @@ from codeatlas import boundaries as boundaries_mod
 
 def render(systems_doc: dict, boundaries_doc: dict) -> str:
     lines: List[str] = [
-        "# Mercator — Boundaries (DMZ rules)",
+        "# CodeAtlas — Boundaries (DMZ rules)",
         "",
-        "Forbidden system-to-system edges declared in `.mercator/boundaries.json`.",
-        "This file regenerates on every `codeatlas refresh` / `mercator render`.",
+        "Forbidden system-to-system edges declared in `.codeatlas/boundaries.json`.",
+        "This file regenerates on every `codeatlas refresh` / `codeatlas render`.",
         "",
-        "_Authoritative source: `.mercator/boundaries.json`. Edit that, not this file._",
+        "_Authoritative source: `.codeatlas/boundaries.json`. Edit that, not this file._",
         "",
     ]
 
@@ -25,7 +25,7 @@ def render(systems_doc: dict, boundaries_doc: dict) -> str:
         lines += [
             "## No boundaries configured",
             "",
-            "Run `codeatlas boundaries init` to scaffold a `.mercator/boundaries.json`",
+            "Run `codeatlas boundaries init` to scaffold a `.codeatlas/boundaries.json`",
             "with examples and inline schema comments.",
             "",
         ]
@@ -106,10 +106,10 @@ def render(systems_doc: dict, boundaries_doc: dict) -> str:
     lines += [
         "## How to change the rules",
         "",
-        "1. Edit `.mercator/boundaries.json` — add / remove rules or tweak selectors",
+        "1. Edit `.codeatlas/boundaries.json` — add / remove rules or tweak selectors",
         "2. `codeatlas boundaries validate` — check for typos (empty selector resolutions)",
         "3. `codeatlas check` — see which rules pass or fail",
-        "4. `mercator render` — regenerate this view (also runs on every `codeatlas refresh`)",
+        "4. `codeatlas render` — regenerate this view (also runs on every `codeatlas refresh`)",
         "",
     ]
     return "\n".join(lines) + "\n"

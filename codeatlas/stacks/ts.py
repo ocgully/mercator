@@ -53,8 +53,9 @@ SKIP_DIRS = {
     ".nuxt",
     ".turbo",
     ".cache",
-    ".codemap",
+    ".codeatlas",
     ".mercator",
+    ".codemap",
 }
 
 

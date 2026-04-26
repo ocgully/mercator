@@ -1,4 +1,4 @@
-"""meta.json I/O — the single source of truth for mercator freshness."""
+"""meta.json I/O — the single source of truth for codeatlas freshness."""
 from __future__ import annotations
 
 import datetime
@@ -41,7 +41,7 @@ def _tool_versions(stack: str) -> Dict[str, str]:
     return versions
 
 
-def write(project_root: Path, mercator_dir: Path, stack: str) -> None:
+def write(project_root: Path, codeatlas_dir: Path, stack: str) -> None:
     payload = {
         "schema_version": SCHEMA_VERSION,
         "stack": stack,
@@ -50,13 +50,13 @@ def write(project_root: Path, mercator_dir: Path, stack: str) -> None:
         "tools": _tool_versions(stack),
         "layers": layer_support(stack) if stack != "multi-project" else {},
     }
-    (mercator_dir / "meta.json").write_text(
+    (codeatlas_dir / "meta.json").write_text(
         json.dumps(payload, indent=2) + "\n", encoding="utf-8"
     )
 
 
 def write_project(repo_root: Path, project_storage: Path, stack: str) -> None:
-    """Write per-project meta.json under .mercator/projects/<id>/."""
+    """Write per-project meta.json under .codeatlas/projects/<id>/."""
     payload = {
         "schema_version": SCHEMA_VERSION,
         "stack": stack,
@@ -70,8 +70,8 @@ def write_project(repo_root: Path, project_storage: Path, stack: str) -> None:
     )
 
 
-def read(mercator_dir: Path) -> dict:
-    path = mercator_dir / "meta.json"
+def read(codeatlas_dir: Path) -> dict:
+    path = codeatlas_dir / "meta.json"
     if not path.is_file():
         return {}
     return json.loads(path.read_text(encoding="utf-8"))

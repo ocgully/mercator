@@ -1,12 +1,12 @@
-// Mercator atlas — single-project viewer.
+// CodeAtlas — single-project viewer.
 //
-// This file is bundled into the generated HTML by mercator/render/atlas/__init__.py
+// This file is bundled into the generated HTML by codeatlas/render/atlas/__init__.py
 // (everything inside the IIFE below ends up inside one inline <script>). It is
 // authored as plain JS — no build step, no framework, no module graph at runtime.
 //
 // Data shape (read from #atlas-data JSON island):
 //   {
-//     mercator_version, schema_version,
+//     codeatlas_version, schema_version,
 //     project: { id, name, stack, root, category, tags },
 //     systems:    { systems: [...], stack },
 //     contracts:  { <system_name>: { items: [...] } },
@@ -37,7 +37,7 @@
   // Topbar enrichment: project name, repo back link.
   if (PROJECT) {
     const h1 = document.getElementById('atlas-h1');
-    if (h1) h1.innerHTML = `Mercator Atlas <span class="sub">${PROJECT.name || PROJECT.id} · v${DATA.mercator_version} · ${STACK}</span>`;
+    if (h1) h1.innerHTML = `CodeAtlas <span class="sub">${PROJECT.name || PROJECT.id} · v${DATA.codeatlas_version} · ${STACK}</span>`;
   }
   if (DATA.href_back) {
     tabs.insertAdjacentHTML('afterbegin',
@@ -217,7 +217,7 @@
         <dl class="kvs">
           ${PROJECT ? `<dt>Project</dt><dd><strong>${esc(PROJECT.name || PROJECT.id)}</strong> <span class="pill">${esc(PROJECT.category || '')}</span></dd>` : ''}
           <dt>Stack</dt><dd>${esc(STACK)}</dd>
-          <dt>Mercator</dt><dd>v${esc(DATA.mercator_version)} (schema ${esc(DATA.schema_version)})</dd>
+          <dt>CodeAtlas</dt><dd>v${esc(DATA.codeatlas_version)} (schema ${esc(DATA.schema_version)})</dd>
           <dt>Generated</dt><dd>${esc(META.generated_at || '—')}</dd>
           <dt>HEAD</dt><dd class="mono">${esc(META.git_head || '—')}</dd>
           <dt>Tool versions</dt><dd class="mono">${esc(JSON.stringify(META.tools || META.tool_versions || {}))}</dd>
@@ -243,8 +243,8 @@
       </section>
       <section class="panel">
         <h2>Equivalent CLI</h2>
-        <pre class="cmd">mercator info
-mercator query systems${PROJECT && PROJECT.id ? ` --project ${PROJECT.id}` : ''}</pre>
+        <pre class="cmd">codeatlas info
+codeatlas query systems${PROJECT && PROJECT.id ? ` --project ${PROJECT.id}` : ''}</pre>
       </section>
     `;
   }
@@ -303,9 +303,9 @@ mercator query systems${PROJECT && PROJECT.id ? ` --project ${PROJECT.id}` : ''}
       </section>
       <section class="panel">
         <h2>Equivalent CLI</h2>
-        <pre class="cmd">mercator query systems${PROJECT && PROJECT.id ? ` --project ${PROJECT.id}` : ''}
-mercator query deps &lt;system&gt;
-mercator query touches &lt;path&gt;</pre>
+        <pre class="cmd">codeatlas query systems${PROJECT && PROJECT.id ? ` --project ${PROJECT.id}` : ''}
+codeatlas query deps &lt;system&gt;
+codeatlas query touches &lt;path&gt;</pre>
       </section>
     `;
 
@@ -467,9 +467,9 @@ mercator query touches &lt;path&gt;</pre>
       ${contractSection(name, contract)}
       <section class="panel">
         <h2>Equivalent CLI</h2>
-        <pre class="cmd">mercator query system ${esc(name)}${PROJECT && PROJECT.id ? ` --project ${PROJECT.id}` : ''}
-mercator query deps ${esc(name)}
-mercator query contract ${esc(name)}</pre>
+        <pre class="cmd">codeatlas query system ${esc(name)}${PROJECT && PROJECT.id ? ` --project ${PROJECT.id}` : ''}
+codeatlas query deps ${esc(name)}
+codeatlas query contract ${esc(name)}</pre>
       </section>
     `;
     renderMermaid(document.getElementById('sys-detail-graph'),
@@ -531,9 +531,9 @@ mercator query contract ${esc(name)}</pre>
       </section>
       <section class="panel">
         <h2>Equivalent CLI</h2>
-        <pre class="cmd">mercator query symbol &lt;name&gt;${PROJECT && PROJECT.id ? ` --project ${PROJECT.id}` : ''}
-mercator query symbol &lt;name&gt; --kind fn
-mercator query symbol &lt;name&gt; --kinds fn,struct,trait</pre>
+        <pre class="cmd">codeatlas query symbol &lt;name&gt;${PROJECT && PROJECT.id ? ` --project ${PROJECT.id}` : ''}
+codeatlas query symbol &lt;name&gt; --kind fn
+codeatlas query symbol &lt;name&gt; --kinds fn,struct,trait</pre>
       </section>
     `;
     const tbody = app.querySelector('#sym-table tbody');
@@ -573,7 +573,7 @@ mercator query symbol &lt;name&gt; --kinds fn,struct,trait</pre>
       <section class="panel">
         <h2>DMZ rules</h2>
         ${!hasBoundaries
-          ? '<div class="empty">No <code>.mercator/projects/&lt;id&gt;/boundaries.json</code>. Run <code>mercator boundaries init</code> to scaffold one.</div>'
+          ? '<div class="empty">No <code>.codeatlas/projects/&lt;id&gt;/boundaries.json</code>. Run <code>codeatlas boundaries init</code> to scaffold one.</div>'
           : `<table>
               <thead><tr><th>Rule</th><th>From</th><th>Not to</th><th>Severity</th><th>Transitive</th><th>Status</th></tr></thead>
               <tbody>
@@ -621,10 +621,10 @@ mercator query symbol &lt;name&gt; --kinds fn,struct,trait</pre>
       ` : ''}
       <section class="panel">
         <h2>Equivalent CLI</h2>
-        <pre class="cmd">mercator query boundaries${PROJECT && PROJECT.id ? ` --project ${PROJECT.id}` : ''}
-mercator query violations
-mercator check                 # CI gate — exit 1 on error-severity (across all projects)
-mercator boundaries init       # scaffold this project's boundaries.json</pre>
+        <pre class="cmd">codeatlas query boundaries${PROJECT && PROJECT.id ? ` --project ${PROJECT.id}` : ''}
+codeatlas query violations
+codeatlas check                 # CI gate — exit 1 on error-severity (across all projects)
+codeatlas boundaries init       # scaffold this project's boundaries.json</pre>
       </section>
     `;
     if (hasBoundaries) {
@@ -650,9 +650,9 @@ mercator boundaries init       # scaffold this project's boundaries.json</pre>
       </section>
       <section class="panel">
         <h2>Equivalent CLI</h2>
-        <pre class="cmd">mercator query assets${PROJECT && PROJECT.id ? ` --project ${PROJECT.id}` : ''}
-mercator query assets --system &lt;system&gt;
-mercator query assets --asset-kind texture</pre>
+        <pre class="cmd">codeatlas query assets${PROJECT && PROJECT.id ? ` --project ${PROJECT.id}` : ''}
+codeatlas query assets --system &lt;system&gt;
+codeatlas query assets --asset-kind texture</pre>
       </section>
     `;
     const fFile = app.querySelector('#a-file');
@@ -696,10 +696,10 @@ mercator query assets --asset-kind texture</pre>
       </section>
       <section class="panel">
         <h2>Equivalent CLI</h2>
-        <pre class="cmd">mercator query strings${PROJECT && PROJECT.id ? ` --project ${PROJECT.id}` : ''}
-mercator query strings --key 'login.*'
-mercator query strings --file &lt;path&gt;
-mercator query strings --system &lt;system&gt;</pre>
+        <pre class="cmd">codeatlas query strings${PROJECT && PROJECT.id ? ` --project ${PROJECT.id}` : ''}
+codeatlas query strings --key 'login.*'
+codeatlas query strings --file &lt;path&gt;
+codeatlas query strings --system &lt;system&gt;</pre>
       </section>
     `;
     const fKey = app.querySelector('#s-key');
@@ -781,7 +781,7 @@ mercator query strings --system &lt;system&gt;</pre>
           </label>
         </div>
         <h3>Command</h3>
-        <pre class="cmd" id="q-cmd">mercator query systems${projFlag}</pre>
+        <pre class="cmd" id="q-cmd">codeatlas query systems${projFlag}</pre>
         <div style="display:flex;gap:8px;align-items:center">
           <button id="q-copy">Copy</button>
           <span id="q-hint" class="empty" style="font-style:normal"></span>
@@ -813,7 +813,7 @@ mercator query strings --system &lt;system&gt;</pre>
     const build = () => {
       const s = subject.value;
       const name = $('q-name').value.trim();
-      const parts = ['mercator query', s];
+      const parts = ['codeatlas query', s];
       const needsName = ['deps','contract','symbol','touches','system'];
       if (needsName.includes(s)) {
         if (name) parts.push(shellQuote(name));

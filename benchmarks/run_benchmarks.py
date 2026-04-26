@@ -1,4 +1,4 @@
-"""Benchmark runner for Mercator against a curated set of public repos.
+"""Benchmark runner for CodeAtlas against a curated set of public repos.
 
 Usage:
     python benchmarks/run_benchmarks.py
@@ -11,8 +11,8 @@ Outputs:
     benchmarks/results.json
     benchmarks/atlas-benchmarks.md
 
-Storage strategy: every mercator invocation passes --storage-dir so we never
-plant `.mercator/` inside the cloned source tree.
+Storage strategy: every codeatlas invocation passes --storage-dir so we
+never plant `.codeatlas/` inside the cloned source tree.
 """
 from __future__ import annotations
 
@@ -25,10 +25,12 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-REPO_ROOT = Path(r"C:\git\mercator")
+# Resolve the repo root from this file's location so the script is portable.
+REPO_ROOT = Path(__file__).resolve().parent.parent
 BENCH_DIR = REPO_ROOT / "benchmarks"
-CLONE_ROOT = Path(r"C:\tmp\bench-clones")
-ATLAS_ROOT = Path(r"C:\tmp\bench-atlases")
+# Clone + atlas dirs default to a sibling tmp tree; override via env.
+CLONE_ROOT = Path(os.environ.get("CODEATLAS_BENCH_CLONES", REPO_ROOT.parent / "bench-clones"))
+ATLAS_ROOT = Path(os.environ.get("CODEATLAS_BENCH_ATLASES", REPO_ROOT.parent / "bench-atlases"))
 
 CLONE_TIMEOUT_SEC = 120  # abort if clone >2 min
 CMD_TIMEOUT_SEC = 60 * 30  # 30 min ceiling for init/refresh on bevy etc.
@@ -156,7 +158,7 @@ def clone_repo(repo: dict) -> dict:
     return result
 
 
-def run_mercator(target: Path, storage_dir: Path) -> dict:
+def run_codeatlas(target: Path, storage_dir: Path) -> dict:
     """Run init, then refresh; capture timings + parse outputs."""
     out: dict = {
         "init_seconds": None, "init_rc": None, "init_stderr": None,
@@ -172,7 +174,7 @@ def run_mercator(target: Path, storage_dir: Path) -> dict:
     storage_dir.mkdir(parents=True, exist_ok=True)
 
     base = [
-        sys.executable, "-m", "mercator",
+        sys.executable, "-m", "codeatlas",
         "--project-root", str(target),
         "--storage-dir", str(storage_dir),
     ]
@@ -252,10 +254,11 @@ def run_mercator(target: Path, storage_dir: Path) -> dict:
 
     out["storage_bytes"] = dir_size_bytes(storage_dir)
 
-    # Sanity: ensure no .mercator inside the source tree
-    leaked = target / ".mercator"
-    if leaked.exists():
-        out["notes"].append(f"WARNING: .mercator/ leaked into clone at {leaked}")
+    # Sanity: ensure no .codeatlas inside the source tree.
+    for storage_name in (".codeatlas", ".mercator", ".codemap"):
+        leaked = target / storage_name
+        if leaked.exists():
+            out["notes"].append(f"WARNING: {storage_name}/ leaked into clone at {leaked}")
 
     return out
 
@@ -278,9 +281,9 @@ def main() -> int:
     BENCH_DIR.mkdir(parents=True, exist_ok=True)
 
     # Verify version
-    rc, sout, serr, _ = run_cmd([sys.executable, "-m", "mercator", "--version"], timeout=30)
+    rc, sout, serr, _ = run_cmd([sys.executable, "-m", "codeatlas", "--version"], timeout=30)
     version_line = (sout or serr).strip()
-    log(f"mercator version: {version_line}")
+    log(f"codeatlas version: {version_line}")
 
     git_rc, git_out, _, _ = run_cmd(["git", "-C", str(REPO_ROOT), "rev-parse", "HEAD"], timeout=15)
     git_sha = git_out.strip() if git_rc == 0 else "unknown"
@@ -295,15 +298,15 @@ def main() -> int:
         record = {**clone_info}
 
         if clone_info.get("clone_error"):
-            record["mercator"] = None
+            record["codeatlas"] = None
             record["error"] = "clone_failed"
             results.append(record)
             continue
 
         target = Path(clone_info["clone_path"])
         storage_dir = ATLAS_ROOT / eff_name
-        merc = run_mercator(target, storage_dir)
-        record["mercator"] = merc
+        merc = run_codeatlas(target, storage_dir)
+        record["codeatlas"] = merc
         record["storage_dir"] = str(storage_dir)
         results.append(record)
 
@@ -321,26 +324,28 @@ def main() -> int:
     write_markdown(payload)
     log(f"wrote {BENCH_DIR / 'atlas-benchmarks.md'}")
 
-    # Sanity: ensure no .mercator leaked
+    # Sanity: ensure no codeatlas storage leaked into the cloned repos.
     for r in results:
         if r.get("clone_path"):
-            leaked = Path(r["clone_path"]) / ".mercator"
-            if leaked.exists():
-                log(f"WARNING: .mercator/ leaked into {leaked}")
+            for storage_name in (".codeatlas", ".mercator", ".codemap"):
+                leaked = Path(r["clone_path"]) / storage_name
+                if leaked.exists():
+                    log(f"WARNING: {storage_name}/ leaked into {leaked}")
     return 0
 
 
 def write_markdown(payload: dict) -> None:
     lines: list[str] = []
-    lines.append("# Mercator Atlas Benchmarks")
+    lines.append("# CodeAtlas Benchmarks")
     lines.append("")
     lines.append(
-        "Real-world numbers from running Mercator against six public repos covering "
-        "Rust, C++, TypeScript, and Python — chosen to stress refresh-time scaling, "
-        "atlas-size scaling, and detection accuracy on codebases Mercator has never "
-        "seen before. Each repo is shallow-cloned (`--depth 1`), then `mercator init` "
-        "and `mercator refresh` are run back-to-back against an out-of-tree storage "
-        "dir (`--storage-dir`). All wall times use `time.perf_counter()`."
+        "Real-world numbers from running CodeAtlas against six public repos "
+        "covering Rust, C++, TypeScript, and Python — chosen to stress refresh-"
+        "time scaling, atlas-size scaling, and detection accuracy on codebases "
+        "CodeAtlas has never seen before. Each repo is shallow-cloned "
+        "(`--depth 1`), then `codeatlas init` and `codeatlas refresh` are run "
+        "back-to-back against an out-of-tree storage dir (`--storage-dir`). "
+        "All wall times use `time.perf_counter()`."
     )
     lines.append("")
     lines.append("## Machine")
@@ -351,7 +356,7 @@ def write_markdown(payload: dict) -> None:
     lines.append("")
     lines.append("## Run metadata")
     lines.append("")
-    lines.append(f"- **Mercator:** `{payload['version']}`")
+    lines.append(f"- **CodeAtlas:** `{payload['version']}`")
     lines.append(f"- **Commit:** `{payload['git_sha']}`")
     lines.append(f"- **Timestamp (UTC):** `{payload['timestamp_utc']}`")
     lines.append("")
@@ -366,7 +371,7 @@ def write_markdown(payload: dict) -> None:
     for r in payload["results"]:
         name = r.get("name")
         url = r.get("url")
-        merc = r.get("mercator") or {}
+        merc = r.get("codeatlas") or r.get("mercator") or {}
         stacks = ", ".join(merc.get("stacks") or []) or "—"
         clone = fmt_seconds(r.get("clone_seconds"))
         if r.get("skipped_clone"):
@@ -392,7 +397,7 @@ def write_markdown(payload: dict) -> None:
 
     for r in payload["results"]:
         name = r.get("name")
-        merc = r.get("mercator") or {}
+        merc = r.get("codeatlas") or r.get("mercator") or {}
         lines.append(f"### `{name}` — {r.get('category')}")
         lines.append("")
         lines.append(f"- URL: <{r.get('url')}>")
@@ -465,8 +470,11 @@ def write_markdown(payload: dict) -> None:
     lines.append("")
     lines.append(
         "The runner is idempotent: it skips clones that already exist under "
-        "`C:\\tmp\\bench-clones\\`, but always rebuilds `.mercator/` storage in "
-        "`C:\\tmp\\bench-atlases\\<repo>\\` from scratch."
+        "the configured clone root (default `<repo>/../bench-clones/`, "
+        "override with `$CODEATLAS_BENCH_CLONES`), but always rebuilds "
+        "`.codeatlas/` storage in `<atlases-root>/<repo>/` from scratch "
+        "(default `<repo>/../bench-atlases/`, override with "
+        "`$CODEATLAS_BENCH_ATLASES`)."
     )
     lines.append("")
 
@@ -484,7 +492,7 @@ def commentary_for(name: str, merc: dict, record: dict) -> str:
             f"_Why this matters:_ Bevy is the marquee large Rust monorepo — "
             f"{proj_count} crates, {sys_total} systems. Init took "
             f"{fmt_seconds(init_t)} and refresh {fmt_seconds(refresh_t)}; "
-            "they should be near-identical because Mercator is fully "
+            "they should be near-identical because CodeAtlas is fully "
             "deterministic and does not cache between runs. The atlas "
             "renders one card per crate plus per-crate sub-atlases — "
             "this is the run that proves whether atlas size scales linearly "
@@ -493,7 +501,7 @@ def commentary_for(name: str, merc: dict, record: dict) -> str:
     if name == "vite":
         return (
             f"_Why this matters:_ Vite is a pnpm workspace — exactly the case the "
-            f"new TypeScript Layer 2 scanner targets. Mercator detected "
+            f"new TypeScript Layer 2 scanner targets. CodeAtlas detected "
             f"{proj_count} packages totalling {sys_total} systems. Refresh "
             f"({fmt_seconds(refresh_t)}) vs init ({fmt_seconds(init_t)}) is the "
             "first real-world data point on whether the TS scanner has the same "
@@ -512,7 +520,7 @@ def commentary_for(name: str, merc: dict, record: dict) -> str:
             f"_Why this matters:_ A real Python AI/LLM codebase — {sys_total} "
             f"systems across {proj_count} project(s). The systems count reflects "
             "every directory with `__init__.py`, so deeply-nested packages can "
-            "inflate it; treat the number as 'directories Mercator considered "
+            "inflate it; treat the number as 'directories CodeAtlas considered "
             "scope-worthy', not 'logical components'."
         )
     if name in ("opencode", "continue", "cline"):
@@ -529,7 +537,7 @@ def collect_rough_edges(payload: dict) -> list[str]:
     edges: list[str] = []
     for r in payload["results"]:
         name = r.get("name")
-        merc = r.get("mercator") or {}
+        merc = r.get("codeatlas") or r.get("mercator") or {}
         if r.get("clone_error"):
             edges.append(
                 f"`{name}`: clone aborted at the 2-minute budget — `--depth 1` "

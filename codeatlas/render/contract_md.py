@@ -33,7 +33,7 @@ def render(doc: dict) -> str:
         f"**Files scanned**: {files_scanned}",
         f"**Public items**: {len(items)}",
         "",
-        "_Last-refresh timestamp is in `.mercator/meta.json`; this file is time-stable._",
+        "_Last-refresh timestamp is in `.codeatlas/meta.json`; this file is time-stable._",
         "",
     ]
 

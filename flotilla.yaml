@@ -1,9 +1,9 @@
-# codeatlas (formerly mercator) as a Flotilla plugin.
+# codeatlas as a Flotilla plugin.
 #
 # `flotilla install codeatlas` pip-installs codeatlas and composes the
 # contributions below into the consumer project's .claude/.
 #
-# See https://github.com/ocgully/mercator for the underlying tool.
+# See https://github.com/ocgully/codeatlas for the underlying tool.
 
 name: codeatlas
 aliases:
@@ -11,7 +11,7 @@ aliases:
   - codemap    # double-legacy
 version: 0.6.0
 description: Layered, AI-friendly codemap CLI for agent consumption
-homepage: https://github.com/ocgully/mercator
+homepage: https://github.com/ocgully/codeatlas
 license: MIT
 kind: tool
 

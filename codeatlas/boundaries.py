@@ -1,12 +1,12 @@
 """Forbidden-edge boundaries — the inverse of a dep graph.
 
-A project's `.mercator/boundaries.json` declares which systems MUST NOT
+A project's `.codeatlas/boundaries.json` declares which systems MUST NOT
 reach which other systems — DMZ rules, layer separations, hexagonal-
 architecture guards, sim/view splits. The codemap evaluates these rules
 against the current Layer 1 dep graph and reports any violations with
 concrete paths.
 
-Schema (`.mercator/boundaries.json`):
+Schema (`.codeatlas/boundaries.json`):
 
 {
   "schema_version": "1",
@@ -96,19 +96,18 @@ def load_path(path: Path) -> dict:
 
 
 def load(project_root: Path) -> dict:
-    """Legacy convenience: load `.mercator/boundaries.json` at the repo root.
+    """Legacy convenience: load `.codeatlas/boundaries.json` at the repo root.
 
-    Prefer `load_path(project_storage_dir / "boundaries.json")` for
-    project-aware callers.
+    Falls back to `.mercator/` and `.codemap/` for repos that haven't yet
+    run `codeatlas migrate-from-mercator`. Prefer
+    `load_path(project_storage_dir / "boundaries.json")` for project-aware
+    callers.
     """
-    path = project_root / ".mercator" / "boundaries.json"
-    if not path.is_file():
-        legacy = project_root / ".codemap" / "boundaries.json"
-        if legacy.is_file():
-            path = legacy
-        else:
-            return {}
-    return load_path(path)
+    for storage in (".codeatlas", ".mercator", ".codemap"):
+        path = project_root / storage / "boundaries.json"
+        if path.is_file():
+            return load_path(path)
+    return {}
 
 
 # ---------------------------------------------------------------------------

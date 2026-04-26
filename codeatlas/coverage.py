@@ -1,16 +1,16 @@
 """Source-file coverage report.
 
-A repo can have lots of source code that no Mercator project covers — either
-because the stack isn't supported (C++, Go, Lua, GDScript, Swift, …) or
-because a small project at root only declares build tooling (e.g. Godot's
+A repo can have lots of source code that no CodeAtlas project covers —
+either because the stack isn't supported (C++, Go, Lua, GDScript, Swift, …)
+or because a small project at root only declares build tooling (e.g. Godot's
 `pyproject.toml` for SCons hooks while the engine itself is C++).
 
 This module walks the repo, attributes each source file to its deepest
 covering project (if any), and emits a coverage breakdown by extension —
 mostly so the atlas can honestly say "we mapped 4% of this repo by file
-count, the other 96% is C++/GDScript/etc. that Mercator doesn't speak yet".
+count, the other 96% is C++/GDScript/etc. that CodeAtlas doesn't speak yet".
 
-Output: `.mercator/coverage.json`:
+Output: `.codeatlas/coverage.json`:
 
     {
       "schema_version": "1",
@@ -41,7 +41,7 @@ from codeatlas import SCHEMA_VERSION, paths
 # atlas. If an extension has no entry here, it's not counted (no point
 # tallying every `.png`).
 _EXT_TO_LANG: Dict[str, str] = {
-    # Mercator-supported
+    # CodeAtlas-supported
     ".rs":   "rust",
     ".py":   "python",
     ".pyi":  "python",
@@ -94,7 +94,7 @@ _EXT_TO_LANG: Dict[str, str] = {
     ".nix":  "nix",
 }
 
-# Mercator-supported language labels — anything else is "unsupported" and
+# CodeAtlas-supported language labels — anything else is "unsupported" and
 # shows up in `unsupported_languages` for the atlas to surface.
 _SUPPORTED_LANGS: set = {
     "rust", "python", "typescript", "javascript", "dart",
@@ -130,7 +130,7 @@ _SKIP_DIRS: set = {
     ".venv", "venv", "env",
     "coverage", "htmlcov", ".coverage",
     ".idea", ".vscode", ".github",
-    ".mercator", ".codemap",
+    ".codeatlas", ".mercator", ".codemap",
     "tmp", "temp",
     "vendor", "third_party", "third-party",
 }
@@ -212,11 +212,11 @@ def compute_coverage(repo_root: Path, projects_doc: dict, *,
         "unsupported_languages": sorted(unsupported),
         "files_scanned": files_seen,
         "max_files_capped": files_seen > max_files,
-        "source_tool": "mercator_coverage_walk",
+        "source_tool": "codeatlas_coverage_walk",
         "source_tool_note": (
             "Counts source files by extension across the repo and attributes "
             "each to its deepest covering project (or 'unmapped' if no "
-            "project owns it). Mercator-supported languages (rust, python, "
+            "project owns it). CodeAtlas-supported languages (rust, python, "
             "typescript, javascript, dart) are flagged separately so the "
             "atlas can show how much of the repo is covered."
         ),
@@ -270,7 +270,7 @@ def _attribute(
 
 
 def write_coverage(repo_root: Path, projects_doc: dict) -> Path:
-    repo_storage = paths.ensure_mercator_dir(repo_root)
+    repo_storage = paths.ensure_codeatlas_dir(repo_root)
     doc = compute_coverage(repo_root, projects_doc)
     out = repo_storage / "coverage.json"
     out.write_text(json.dumps(doc, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")

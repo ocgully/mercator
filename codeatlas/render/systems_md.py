@@ -22,7 +22,7 @@ def render(doc: dict) -> str:
         f"**Stack**: {stack}",
         f"**Workspace members**: {len(systems)}",
         "",
-        "_Last-refresh timestamp is in `.mercator/meta.json`; this file is time-stable._",
+        "_Last-refresh timestamp is in `.codeatlas/meta.json`; this file is time-stable._",
         "",
     ]
 

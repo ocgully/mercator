@@ -1,4 +1,4 @@
-"""Tests for mercator.projects — repo walking and project detection."""
+"""Tests for codeatlas.projects — repo walking and project detection."""
 from __future__ import annotations
 
 import json

@@ -2,18 +2,18 @@
 
 A **project** is a self-contained build unit identified by one (or more
 adjacent) stack manifest files. A repo has 1..N projects. Detection is
-file-based and explicit: we look for the same markers as `mercator.detect`,
+file-based and explicit: we look for the same markers as `codeatlas.detect`,
 but anywhere under the repo root rather than only at the root.
 
-Outputs `.mercator/projects.json`:
+Outputs `.codeatlas/projects.json`:
 
     {
       "schema_version": "1",
       "repo_root": ".",
       "projects": [
-        { "id": "mercator-cli", "stack": "python",
+        { "id": "codeatlas-cli", "stack": "python",
           "root": ".", "manifest": "pyproject.toml",
-          "category": "tool", "tags": [], "manifest_name": "mercator" },
+          "category": "tool", "tags": [], "manifest_name": "codeatlas" },
         ...
       ],
       "skipped": [...]   # informational: paths skipped by the walker
@@ -24,7 +24,7 @@ directory (e.g. `package.json` + `tsconfig.json` + `pyproject.toml` for a
 hybrid project), the highest-precedence stack wins (matching `detect.py`'s
 order). One project per directory.
 
-Repo-level overrides live in `.mercator/repo.toml`:
+Repo-level overrides live in `.codeatlas/repo.toml`:
 
     # Coarse-grained directory filters
     include = ["apps/*", "services/*"]   # only project roots matching
@@ -75,8 +75,8 @@ SKIP_DIRS: Set[str] = {
     ".idea", ".vscode",
     # Repo metadata (GitHub Actions, issue templates) — rarely real projects
     ".github",
-    # Mercator's own
-    ".mercator", ".codemap",
+    # CodeAtlas's own
+    ".codeatlas", ".mercator", ".codemap",
     # Temporary
     "tmp", "temp",
 }
@@ -123,8 +123,14 @@ PATH_CATEGORY_RULES: List[Tuple[str, str]] = [
 # ---------------------------------------------------------------------------
 
 def _read_repo_toml(repo_root: Path) -> dict:
-    path = repo_root / ".mercator" / "repo.toml"
-    if not path.is_file():
+    # Prefer .codeatlas/, fall back to legacy .mercator/ and .codemap/.
+    path = None
+    for storage in (".codeatlas", ".mercator", ".codemap"):
+        candidate = repo_root / storage / "repo.toml"
+        if candidate.is_file():
+            path = candidate
+            break
+    if path is None:
         return {}
     try:
         text = path.read_text(encoding="utf-8")
@@ -440,19 +446,19 @@ def detect_projects(repo_root: Path, *, max_depth: int = 8) -> dict:
         "projects": projects,
         "skipped_count": len(skipped),
         "skipped_sample": skipped[:25],
-        "source_tool": "mercator_project_walk",
+        "source_tool": "codeatlas_project_walk",
         "source_tool_note": (
             "Auto-detected by walking the repo for stack manifests. "
-            "Override via .mercator/repo.toml (include/exclude/skip_dirs/[projects.<id>])."
+            "Override via .codeatlas/repo.toml (include/exclude/skip_dirs/[projects.<id>])."
         ),
     }
 
 
-def write_projects(repo_root: Path, mercator_dir: Path) -> dict:
-    """Detect projects and write `.mercator/projects.json`. Returns the doc."""
+def write_projects(repo_root: Path, codeatlas_dir: Path) -> dict:
+    """Detect projects and write `.codeatlas/projects.json`. Returns the doc."""
     doc = detect_projects(repo_root)
-    mercator_dir.mkdir(parents=True, exist_ok=True)
-    path = mercator_dir / "projects.json"
+    codeatlas_dir.mkdir(parents=True, exist_ok=True)
+    path = codeatlas_dir / "projects.json"
     path.write_text(
         json.dumps(doc, indent=2, ensure_ascii=False) + "\n",
         encoding="utf-8",
@@ -460,8 +466,8 @@ def write_projects(repo_root: Path, mercator_dir: Path) -> dict:
     return doc
 
 
-def load_projects(mercator_dir: Path) -> Optional[dict]:
-    p = mercator_dir / "projects.json"
+def load_projects(codeatlas_dir: Path) -> Optional[dict]:
+    p = codeatlas_dir / "projects.json"
     if not p.is_file():
         return None
     try:

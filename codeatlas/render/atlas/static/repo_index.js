@@ -1,4 +1,4 @@
-// Mercator atlas — multi-project repo index page (project picker).
+// CodeAtlas — multi-project repo index page (project picker).
 //
 // Phase 5 will enrich this with the cross-project graph, repo-wide search,
 // and category sidebars. For now: stack/category filters + cards grouped
@@ -247,9 +247,9 @@
         <h2>Source coverage</h2>
         <div style="margin-bottom:8px">
           <strong>${pctMapped}%</strong> of source files (${COV.in_projects_total} of ${total})
-          live inside a known Mercator project.
+          live inside a known CodeAtlas project.
           ${unsupported.length
-            ? ` The remaining ${COV.unmapped_total} files are in languages Mercator
+            ? ` The remaining ${COV.unmapped_total} files are in languages CodeAtlas
                 doesn't yet map: <strong>${unsupported.map(esc).join(', ')}</strong>.`
             : ' All detected source is covered.'}
         </div>
@@ -280,7 +280,7 @@
       if (!RB) {
         return `<section class="panel">
           <h2>Repo-level boundaries</h2>
-          <div class="empty">No <code>.mercator/repo-boundaries.json</code>. Run <code>mercator boundaries init --repo</code> to scaffold cross-project DMZ rules.</div>
+          <div class="empty">No <code>.codeatlas/repo-boundaries.json</code>. Run <code>codeatlas boundaries init --repo</code> to scaffold cross-project DMZ rules.</div>
         </section>`;
       }
       const rules = RB.rules || [];
@@ -348,10 +348,10 @@
     </section>
     <section class="panel">
       <h2>Equivalent CLI</h2>
-      <pre class="cmd">mercator projects list
-mercator query systems --project &lt;id&gt;
-mercator refresh --project &lt;id&gt;
-mercator check                        # CI gate across ALL projects</pre>
+      <pre class="cmd">codeatlas projects list
+codeatlas query systems --project &lt;id&gt;
+codeatlas refresh --project &lt;id&gt;
+codeatlas check                        # CI gate across ALL projects</pre>
     </section>
   `;
   const container = document.getElementById('projects-by-cat');

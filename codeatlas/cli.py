@@ -9,12 +9,13 @@ Exit codes (contract for scripts + CI):
 
 All `query` subcommands emit JSON by default. Pass `--format md` for the
 human-friendly rendered view. Agents should prefer JSON — it's smaller
-and typed. Humans reading `.mercator/*.md` files directly is still fine,
+and typed. Humans reading `.codeatlas/*.md` files directly is still fine,
 but those files are derived, not authoritative.
 
-Backwards-compat: the `codemap` CLI entry point (shipped in earlier releases)
-remains installed during the transition window. It prints a stderr
-deprecation warning and forwards to `main()`. See `deprecated_main()`.
+Backwards-compat: the `mercator` and `codemap` CLI entry points (shipped in
+earlier releases) remain installed during the transition window. They print
+a stderr deprecation warning and forward to `main()`. See
+`main_deprecated_alias()` and `deprecated_main()`.
 """
 from __future__ import annotations
 
@@ -60,7 +61,7 @@ def cmd_init(args) -> int:
     if not args.quiet:
         npc = result.get("project_count", 0)
         print(
-            f"Initialized .mercator/ — {npc} project(s), "
+            f"Initialized .codeatlas/ — {npc} project(s), "
             f"{result.get('systems_count', 0)} systems total, "
             f"{result.get('contracts_written', 0)} contract files."
         )
@@ -68,7 +69,7 @@ def cmd_init(args) -> int:
             print(f"  - {r['id']:32} {r['stack']:8} "
                   f"{r.get('systems_count', 0)} systems, "
                   f"{r.get('contracts_written', 0)} contracts")
-        print(f"  {paths.mercator_dir(root)}")
+        print(f"  {paths.codeatlas_dir(root)}")
     return 0
 
 
@@ -108,7 +109,7 @@ def cmd_refresh(args) -> int:
     if not args.quiet:
         npc = result.get("project_count", 0)
         print(
-            f"Refreshed .mercator/ — {npc} project(s), "
+            f"Refreshed .codeatlas/ — {npc} project(s), "
             f"{result.get('systems_count', 0)} systems, "
             f"{result.get('contracts_written', 0)} contract files written."
         )
@@ -201,7 +202,7 @@ def _query_layer4(root: Path, layer: str, project_id, *,
     """Load <project>/{assets|strings}.json + apply optional filters."""
     import fnmatch
     proj = query_mod.resolve_project(root, project_id)
-    storage = paths.project_storage_dir(paths.mercator_dir(root), proj["id"])
+    storage = paths.project_storage_dir(paths.codeatlas_dir(root), proj["id"])
     path = storage / f"{layer}.json"
     if not path.is_file():
         return {"query": layer, "found": False, "project": proj["id"],
@@ -253,11 +254,14 @@ def cmd_diff(args) -> int:
 def cmd_hooks(args) -> int:
     root = _project_root(args)
     if args.action == "install":
-        launcher = Path(__file__).resolve().parents[2] / "mercator.py"
+        launcher = Path(__file__).resolve().parents[2] / "codeatlas.py"
         if not launcher.is_file():
-            # Legacy launcher name (during transition).
-            legacy = Path(__file__).resolve().parents[2] / "codemap.py"
-            launcher = legacy if legacy.is_file() else launcher
+            # Legacy launcher names (during transition).
+            for legacy_name in ("mercator.py", "codemap.py"):
+                legacy = Path(__file__).resolve().parents[2] / legacy_name
+                if legacy.is_file():
+                    launcher = legacy
+                    break
         try:
             hp = hooks.install(root, launcher_path=launcher if launcher.is_file() else None)
         except RuntimeError as exc:
@@ -269,7 +273,7 @@ def cmd_hooks(args) -> int:
     if args.action == "uninstall":
         ok = hooks.uninstall(root)
         if not args.quiet:
-            print("Uninstalled." if ok else "No mercator hook found.")
+            print("Uninstalled." if ok else "No codeatlas hook found.")
         return 0
     print(f"codeatlas: unknown hooks action '{args.action}'", file=sys.stderr)
     return 1
@@ -313,7 +317,7 @@ def cmd_check(args) -> int:
     Aggregates across all projects in the repo (or one with --project).
     """
     root = _project_root(args)
-    repo_storage = paths.mercator_dir(root)
+    repo_storage = paths.codeatlas_dir(root)
     from codeatlas import projects as projects_mod
     projects_doc = projects_mod.load_projects(repo_storage)
     if projects_doc is None:
@@ -400,7 +404,7 @@ def cmd_render(args) -> int:
     All deterministic — no source-of-truth data is touched.
     """
     root = _project_root(args)
-    repo_storage = paths.mercator_dir(root)
+    repo_storage = paths.codeatlas_dir(root)
     from codeatlas import projects as projects_mod
     projects_doc = projects_mod.load_projects(repo_storage)
     if projects_doc is None:
@@ -443,7 +447,7 @@ def cmd_boundaries(args) -> int:
     """Scaffold or validate boundaries — project-scoped by default,
     repo-level with `--repo`."""
     root = _project_root(args)
-    repo_storage = paths.mercator_dir(root)
+    repo_storage = paths.codeatlas_dir(root)
 
     if getattr(args, "repo", False):
         return _cmd_boundaries_repo(args, repo_storage, root)
@@ -544,7 +548,7 @@ def _cmd_boundaries_repo(args, repo_storage: Path, repo_root: Path) -> int:
 def cmd_projects(args) -> int:
     """List detected projects, or re-run detection."""
     root = _project_root(args)
-    cmdir = paths.mercator_dir(root)
+    cmdir = paths.codeatlas_dir(root)
     if args.action == "detect":
         cmdir.mkdir(parents=True, exist_ok=True)
         doc = projects_mod.write_projects(root, cmdir)
@@ -571,9 +575,9 @@ def cmd_projects(args) -> int:
 
 
 def cmd_atlas(args) -> int:
-    """Regenerate `.mercator/atlas.html` — the interactive code atlas."""
+    """Regenerate `.codeatlas/atlas.html` — the interactive code atlas."""
     root = _project_root(args)
-    cmdir = paths.mercator_dir(root)
+    cmdir = paths.codeatlas_dir(root)
     if not (cmdir / "projects.json").is_file():
         print("codeatlas: no projects.json — run `codeatlas init` first", file=sys.stderr)
         return 4
@@ -593,12 +597,12 @@ def cmd_atlas(args) -> int:
 def cmd_info(args) -> int:
     root = _project_root(args)
     stack = detect(root)
-    m = meta.read(paths.mercator_dir(root))
+    m = meta.read(paths.codeatlas_dir(root))
     _print_json({
-        "mercator_version": __version__,
+        "codeatlas_version": __version__,
         "schema_version": SCHEMA_VERSION,
         "project_root": str(root),
-        "storage_dir": str(paths.mercator_dir(root)),
+        "storage_dir": str(paths.codeatlas_dir(root)),
         "detected_stack": stack,
         "initialized": bool(m),
         "meta": m,
@@ -610,7 +614,7 @@ def cmd_info(args) -> int:
 # parser
 # ---------------------------------------------------------------------------
 
-def _build_parser(prog: str = "mercator") -> argparse.ArgumentParser:
+def _build_parser(prog: str = "codeatlas") -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog=prog,
         description="Layered, AI-friendly codemap — agent-consumable via JSON queries.",
@@ -618,12 +622,12 @@ def _build_parser(prog: str = "mercator") -> argparse.ArgumentParser:
     p.add_argument("--version", action="version", version=f"{prog} {__version__} (schema {SCHEMA_VERSION})")
     p.add_argument("--project-root", help="Override project-root detection")
     p.add_argument("--storage-dir",
-                   help="Redirect .mercator/ storage dir (read + write). "
+                   help="Redirect .codeatlas/ storage dir (read + write). "
                         "Use this to analyse a project without planting "
                         "files inside it.")
     sub = p.add_subparsers(dest="command", required=True)
 
-    sp = sub.add_parser("init", help="Initialize .mercator/ and run all implemented layers")
+    sp = sub.add_parser("init", help="Initialize .codeatlas/ and run all implemented layers")
     sp.add_argument("--quiet", action="store_true")
     sp.set_defaults(func=cmd_init)
 
@@ -696,7 +700,7 @@ def _build_parser(prog: str = "mercator") -> argparse.ArgumentParser:
     sp.set_defaults(func=cmd_projects)
 
     sp = sub.add_parser("atlas",
-                        help="Regenerate the interactive code atlas (.mercator/atlas.html)")
+                        help="Regenerate the interactive code atlas (.codeatlas/atlas.html)")
     sp.add_argument("--open", action="store_true", help="Open the atlas in the default browser after writing")
     sp.add_argument("--quiet", action="store_true")
     sp.set_defaults(func=cmd_atlas)
@@ -762,5 +766,5 @@ def deprecated_main(argv=None) -> int:
     try:
         return args.func(args)
     except KeyboardInterrupt:
-        print("\nmercator: interrupted", file=sys.stderr)
+        print("\ncodemap: interrupted", file=sys.stderr)
         return 130

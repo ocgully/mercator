@@ -2,7 +2,7 @@
 
 Storage layout (always nested):
 
-    .mercator/
+    .codeatlas/
     ├── projects.json                 # detected projects (this version)
     ├── meta.json                     # repo-level: schema, generated_at, git HEAD
     ├── atlas.html                    # interactive code atlas (entry point)
@@ -329,7 +329,7 @@ def refresh(
     affected: Optional[Set[str]] = None,
 ) -> dict:
     """Refresh every project in the repo (or just one, with `project_id`)."""
-    repo_storage = paths.ensure_mercator_dir(repo_root)
+    repo_storage = paths.ensure_codeatlas_dir(repo_root)
 
     # 1. Detect projects (always — fast, source of truth for the repo layout).
     projects_doc = projects_mod.write_projects(repo_root, repo_storage)
@@ -406,7 +406,7 @@ def files_to_affected_systems(repo_root: Path, changed_files: Iterable[str]) -> 
     A repo with multiple projects sees changes scoped to whichever project
     owns the file. Returns an empty dict if no project is affected.
     """
-    repo_storage = paths.mercator_dir(repo_root)
+    repo_storage = paths.codeatlas_dir(repo_root)
     projects_doc = projects_mod.load_projects(repo_storage)
     if projects_doc is None:
         return {}

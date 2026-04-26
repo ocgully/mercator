@@ -1,4 +1,4 @@
-"""Tests for mercator.stacks.ts — Layer 2 (export-scan) public surface."""
+"""Tests for codeatlas.stacks.ts — Layer 2 (export-scan) public surface."""
 from __future__ import annotations
 
 import json

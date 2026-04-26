@@ -20,7 +20,7 @@ Placeholder grammar (intentionally tiny, no template engine):
     {{DATA}}            JSON island contents
     {{CSS}}             contents of static/atlas.css
     {{JS}}              contents of the relevant script
-    {{VERSION}}         mercator package version
+    {{VERSION}}         codeatlas package version
     {{STACK}}           stack name (single-project page only)
     {{TITLE}}           page title (single-project page only)
     {{PROJECT_COUNT}}   number of projects (repo-index page only)
@@ -70,7 +70,7 @@ def _safe_json(payload: dict) -> str:
 def render_single_project(
     *,
     bundle: dict,
-    mercator_version: str,
+    codeatlas_version: str,
     schema_version: str,
     repo_meta: Optional[dict] = None,
     projects_doc: Optional[dict] = None,
@@ -78,14 +78,14 @@ def render_single_project(
 ) -> str:
     """Render a single project's atlas to a self-contained HTML string.
 
-    `bundle` is a dict from `mercator.render._read_project(...)` containing
+    `bundle` is a dict from `codeatlas.render._read_project(...)` containing
     systems / contracts / boundaries / violations / assets / strings / meta /
     project. `href_back` is set when this page is rendered as a child of a
     repo index — it adds an `↑ Repo` topbar link.
     """
     project = bundle["project"]
     payload = {
-        "mercator_version": mercator_version,
+        "codeatlas_version": codeatlas_version,
         "schema_version": schema_version,
         "project": project,
         "systems": bundle["systems"] or {"systems": [], "stack": "unknown"},
@@ -110,7 +110,7 @@ def render_single_project(
         DATA=_safe_json(payload),
         CSS=css,
         JS=js,
-        VERSION=html.escape(mercator_version),
+        VERSION=html.escape(codeatlas_version),
         STACK=html.escape(stack),
         TITLE=html.escape(title),
     )
@@ -119,7 +119,7 @@ def render_single_project(
 def render_repo_index(
     *,
     bundles: List[dict],
-    mercator_version: str,
+    codeatlas_version: str,
     schema_version: str,
     repo_meta: Optional[dict] = None,
     projects_doc: Optional[dict] = None,
@@ -130,7 +130,7 @@ def render_repo_index(
     """Render the multi-project index page.
 
     Each card links to `atlas/projects/<id>.html` (relative path, written
-    by `mercator.render.write_atlas`).
+    by `codeatlas.render.write_atlas`).
     """
     # Per-category caps for embedded search payload — keeps repo-index size sane on
     # large monorepos. UI hints "drill into per-project page" when over_cap is true.
@@ -223,7 +223,7 @@ def render_repo_index(
             },
         })
     payload = {
-        "mercator_version": mercator_version,
+        "codeatlas_version": codeatlas_version,
         "schema_version": schema_version,
         "repo_meta": repo_meta or {},
         "projects_doc": projects_doc or {},
@@ -240,7 +240,7 @@ def render_repo_index(
         DATA=_safe_json(payload),
         CSS=css,
         JS=js,
-        VERSION=html.escape(mercator_version),
+        VERSION=html.escape(codeatlas_version),
         PROJECT_COUNT=str(len(summaries)),
     )
 
@@ -248,7 +248,7 @@ def render_repo_index(
 # Compatibility shim — for callers that still import `render(...)` directly.
 def render(*, systems_doc=None, contracts=None, boundaries_doc=None, violations=None,
            assets_doc=None, strings_doc=None, meta_doc=None,
-           mercator_version: str, schema_version: str) -> str:
+           codeatlas_version: str, schema_version: str) -> str:
     return render_single_project(
         bundle={
             "project": {
@@ -260,5 +260,5 @@ def render(*, systems_doc=None, contracts=None, boundaries_doc=None, violations=
             "boundaries": boundaries_doc, "violations": violations,
             "assets": assets_doc, "strings": strings_doc, "meta": meta_doc,
         },
-        mercator_version=mercator_version, schema_version=schema_version,
+        codeatlas_version=codeatlas_version, schema_version=schema_version,
     )

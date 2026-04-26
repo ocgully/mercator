@@ -24,7 +24,7 @@ from codeatlas.stacks._asset_common import classify, safe_size
 
 
 ASSET_DIRS = ("assets", "res", "resources", "static")
-SKIP_DIRS = {"target", ".git", "node_modules", ".cargo", ".codemap", ".mercator"}
+SKIP_DIRS = {"target", ".git", "node_modules", ".cargo", ".codeatlas", ".mercator", ".codemap"}
 
 # UI setter methods that conventionally take a user-facing string.
 # Matched as `.<ident>(` followed by a string literal. Extremely conservative.

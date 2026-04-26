@@ -67,7 +67,7 @@ def write_atlas(repo_root: Path) -> Path:
     Multi-project repo: `atlas.html` is the repo overview; per-project
     atlases live at `atlas/projects/<id>.html`.
     """
-    repo_storage = _paths.mercator_dir(repo_root)
+    repo_storage = _paths.codeatlas_dir(repo_root)
     repo_storage.mkdir(parents=True, exist_ok=True)
     projects_doc = _projects_mod.load_projects(repo_storage)
     if projects_doc is None:
@@ -90,7 +90,7 @@ def write_atlas(repo_root: Path) -> Path:
             }
         html = _atlas_html.render_single_project(
             bundle=bundle,
-            mercator_version=_version,
+            codeatlas_version=_version,
             schema_version=_schema,
             repo_meta=repo_meta,
             projects_doc=projects_doc,
@@ -108,7 +108,7 @@ def write_atlas(repo_root: Path) -> Path:
         bundles.append(bundle)
         html = _atlas_html.render_single_project(
             bundle=bundle,
-            mercator_version=_version,
+            codeatlas_version=_version,
             schema_version=_schema,
             repo_meta=repo_meta,
             projects_doc=projects_doc,
@@ -136,7 +136,7 @@ def write_atlas(repo_root: Path) -> Path:
     )
     index_html = _atlas_html.render_repo_index(
         bundles=bundles,
-        mercator_version=_version,
+        codeatlas_version=_version,
         schema_version=_schema,
         repo_meta=repo_meta,
         projects_doc=projects_doc,
